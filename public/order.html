@@ -1,0 +1,1320 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Memory Frames — Place Your Order</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400&family=DM+Sans:wght@300;400;500;600&display=swap"
+    rel="stylesheet" />
+  <style>
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    :root {
+      --cream: #f5f0e8;
+      --warm: #ede5d5;
+      --ink: #1a1612;
+      --ink-60: rgba(26, 22, 18, .6);
+      --ink-20: rgba(26, 22, 18, .12);
+      --gold: #b8873a;
+      --gold-lt: #e8c97a;
+      --rose: #c97a7a;
+      --sage: #7a9c8a;
+      --lilac: #9a7abc;
+      --card-r: 18px;
+      --trans: .3s cubic-bezier(.4, 0, .2, 1);
+    }
+
+    html {
+      scroll-behavior: smooth
+    }
+
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: var(--cream);
+      color: var(--ink);
+      overflow-x: hidden;
+      font-size: 15px;
+      line-height: 1.65
+    }
+
+    a {
+      text-decoration: none;
+      color: inherit
+    }
+
+    img {
+      display: block;
+      max-width: 100%
+    }
+
+    h1,
+    h2,
+    h3 {
+      font-family: 'Cormorant Garamond', serif;
+      line-height: 1.1
+    }
+
+    em {
+      font-style: italic;
+      color: var(--gold)
+    }
+
+    .container {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 0 clamp(1.1rem, 5vw, 2.5rem)
+    }
+
+    .topbar {
+      background: var(--ink);
+      padding: 1rem clamp(1.1rem, 5vw, 2.5rem);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem
+    }
+
+    .topbar__logo {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 1.4rem;
+      font-weight: 600;
+      color: var(--cream);
+      display: flex;
+      align-items: center;
+      gap: .45rem
+    }
+
+    .topbar__logo-icon {
+      color: var(--gold-lt)
+    }
+
+    .topbar__help {
+      font-size: .78rem;
+      color: rgba(245, 240, 232, .5);
+      display: flex;
+      align-items: center;
+      gap: .4rem
+    }
+
+    .topbar__help a {
+      color: var(--gold-lt);
+      font-weight: 500;
+      text-decoration: underline;
+      text-underline-offset: 2px
+    }
+
+    .page-intro {
+      background: linear-gradient(160deg, #2a1f10 0%, var(--ink) 100%);
+      padding: 2.8rem clamp(1.1rem, 5vw, 2.5rem) 2.4rem;
+      text-align: center;
+      position: relative;
+      overflow: hidden
+    }
+
+    .page-intro::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(ellipse 70% 80% at 50% 120%, rgba(184, 135, 58, .22) 0%, transparent 65%);
+      pointer-events: none
+    }
+
+    .page-intro__step {
+      display: inline-flex;
+      align-items: center;
+      gap: .4rem;
+      background: rgba(184, 135, 58, .15);
+      border: 1px solid rgba(184, 135, 58, .3);
+      color: var(--gold-lt);
+      font-size: .72rem;
+      font-weight: 500;
+      letter-spacing: .15em;
+      text-transform: uppercase;
+      padding: .35rem 1rem;
+      border-radius: 50px;
+      margin-bottom: 1.1rem
+    }
+
+    .page-intro h1 {
+      font-size: clamp(1.8rem, 4vw, 2.8rem);
+      font-weight: 400;
+      color: var(--cream);
+      margin-bottom: .6rem
+    }
+
+    .page-intro h1 em {
+      color: var(--gold-lt)
+    }
+
+    .page-intro p {
+      font-size: .93rem;
+      color: rgba(245, 240, 232, .55);
+      max-width: 44ch;
+      margin: 0 auto
+    }
+
+    .steps-bar {
+      background: var(--warm);
+      border-bottom: 1px solid var(--ink-20);
+      padding: .9rem clamp(1.1rem, 5vw, 2.5rem)
+    }
+
+    .steps-bar__inner {
+      max-width: 1100px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center
+    }
+
+    .step-item {
+      display: flex;
+      align-items: center;
+      gap: .5rem;
+      flex: 1
+    }
+
+    .step-item__num {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: var(--ink-20);
+      color: var(--ink-60);
+      font-size: .72rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      transition: all var(--trans)
+    }
+
+    .step-item.active .step-item__num {
+      background: var(--gold);
+      color: #fff
+    }
+
+    .step-item.done .step-item__num {
+      background: var(--sage);
+      color: #fff
+    }
+
+    .step-item__label {
+      font-size: .78rem;
+      font-weight: 500;
+      color: var(--ink-60)
+    }
+
+    .step-item.active .step-item__label {
+      color: var(--ink)
+    }
+
+    .step-item.done .step-item__label {
+      color: var(--sage)
+    }
+
+    .step-divider {
+      flex: 1;
+      height: 1px;
+      background: var(--ink-20);
+      margin: 0 .5rem
+    }
+
+    .section {
+      padding: 3rem 0
+    }
+
+    .section-header {
+      margin-bottom: 1.75rem
+    }
+
+    .section-label {
+      display: inline-block;
+      font-size: .68rem;
+      font-weight: 500;
+      letter-spacing: .2em;
+      text-transform: uppercase;
+      color: var(--gold);
+      margin-bottom: .5rem
+    }
+
+    .section-title {
+      font-size: clamp(1.6rem, 3.5vw, 2.2rem);
+      font-weight: 400;
+      margin-bottom: .5rem
+    }
+
+    .section-sub {
+      color: var(--ink-60);
+      font-size: .9rem
+    }
+
+    .frame-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1.1rem
+    }
+
+    .frame-card {
+      background: #fff;
+      border-radius: var(--card-r);
+      border: 2px solid var(--ink-20);
+      cursor: pointer;
+      transition: all var(--trans);
+      overflow: hidden;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      animation: fadeUp .5s ease both;
+      user-select: none
+    }
+
+    .frame-card:nth-child(1) {
+      animation-delay: .04s
+    }
+
+    .frame-card:nth-child(2) {
+      animation-delay: .08s
+    }
+
+    .frame-card:nth-child(3) {
+      animation-delay: .12s
+    }
+
+    .frame-card:nth-child(4) {
+      animation-delay: .16s
+    }
+
+    .frame-card:nth-child(5) {
+      animation-delay: .2s
+    }
+
+    .frame-card:nth-child(6) {
+      animation-delay: .24s
+    }
+
+    .frame-card:hover {
+      border-color: var(--gold);
+      box-shadow: 0 8px 32px rgba(184, 135, 58, .18);
+      transform: translateY(-3px)
+    }
+
+    .frame-card.selected {
+      border-color: var(--gold);
+      box-shadow: 0 0 0 3px rgba(184, 135, 58, .25), 0 8px 32px rgba(184, 135, 58, .15)
+    }
+
+    .frame-card__check {
+      position: absolute;
+      top: .7rem;
+      right: .7rem;
+      width: 26px;
+      height: 26px;
+      background: var(--gold);
+      border-radius: 50%;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      font-size: .8rem;
+      z-index: 2;
+      animation: popIn .25s cubic-bezier(.34, 1.56, .64, 1) both
+    }
+
+    .frame-card.selected .frame-card__check {
+      display: flex
+    }
+
+    .frame-card__art {
+      height: 130px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      overflow: hidden
+    }
+
+    .frame-card__art--anniversary {
+      background: linear-gradient(135deg, #ffe0e0, #ffd0b0)
+    }
+
+    .frame-card__art--birthday {
+      background: linear-gradient(135deg, #fff3c0, #ffe08a)
+    }
+
+    .frame-card__art--wedding {
+      background: linear-gradient(135deg, #f0e8ff, #ddd0f8)
+    }
+
+    .frame-card__art--baby {
+      background: linear-gradient(135deg, #d8f5e8, #b0e8d0)
+    }
+
+    .frame-card__art--graduation {
+      background: linear-gradient(135deg, #dce8ff, #b8cdf8)
+    }
+
+    .frame-card__art--custom {
+      background: linear-gradient(135deg, #f0f0f0, #e0d8c8)
+    }
+
+    .frame-art-inner {
+      width: 72px;
+      height: 85px;
+      border: 3px solid rgba(255, 255, 255, .7);
+      border-radius: 6px;
+      background: rgba(255, 255, 255, .45);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: .3rem;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, .1);
+      backdrop-filter: blur(4px)
+    }
+
+    .frame-art-icon {
+      font-size: 1.6rem;
+      line-height: 1
+    }
+
+    .frame-art-text {
+      font-size: .58rem;
+      font-weight: 600;
+      color: var(--ink);
+      letter-spacing: .04em;
+      text-align: center
+    }
+
+    .frame-card__badge {
+      position: absolute;
+      bottom: .6rem;
+      left: .6rem;
+      background: var(--ink);
+      color: var(--cream);
+      font-size: .6rem;
+      font-weight: 600;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      padding: .2rem .6rem;
+      border-radius: 50px
+    }
+
+    .frame-card__badge--new {
+      background: var(--sage)
+    }
+
+    .frame-card__badge--custom {
+      background: var(--lilac)
+    }
+
+    .frame-card__body {
+      padding: .9rem 1rem 1rem;
+      display: flex;
+      flex-direction: column;
+      gap: .2rem;
+      flex: 1
+    }
+
+    .frame-card__name {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 1.1rem;
+      font-weight: 600;
+      line-height: 1.2
+    }
+
+    .frame-card__price {
+      font-size: .82rem;
+      color: var(--gold);
+      font-weight: 600
+    }
+
+    .frame-card__select-hint {
+      font-size: .72rem;
+      color: var(--ink-60);
+      margin-top: .2rem
+    }
+
+    .frame-card.selected .frame-card__select-hint {
+      color: var(--gold);
+      font-weight: 600
+    }
+
+    .frame-error {
+      font-size: .8rem;
+      color: var(--rose);
+      font-weight: 500;
+      margin-top: .8rem;
+      display: none
+    }
+
+    .frame-error.visible {
+      display: block
+    }
+
+    .selected-frame-banner {
+      display: none;
+      align-items: center;
+      gap: .75rem;
+      background: rgba(184, 135, 58, .1);
+      border: 1.5px solid rgba(184, 135, 58, .3);
+      border-radius: 12px;
+      padding: .9rem 1.1rem;
+      margin-bottom: 1.5rem;
+      animation: fadeUp .3s ease both
+    }
+
+    .selected-frame-banner.visible {
+      display: flex
+    }
+
+    .selected-frame-banner__icon {
+      font-size: 1.3rem
+    }
+
+    .selected-frame-banner__text {
+      font-size: .88rem
+    }
+
+    .selected-frame-banner__text strong {
+      color: var(--gold)
+    }
+
+    .selected-frame-banner__change {
+      margin-left: auto;
+      font-size: .75rem;
+      font-weight: 600;
+      color: var(--ink-60);
+      cursor: pointer;
+      text-decoration: underline;
+      text-underline-offset: 2px;
+      flex-shrink: 0
+    }
+
+    .section-divider {
+      height: 1px;
+      background: var(--ink-20)
+    }
+
+    .form-section {
+      padding: 2.5rem 0 3rem
+    }
+
+    .order-form {
+      display: flex;
+      flex-direction: column;
+      gap: 1.2rem;
+      max-width: 720px
+    }
+
+    .form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.2rem
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: .35rem
+    }
+
+    .form-group label {
+      font-size: .8rem;
+      font-weight: 600;
+      letter-spacing: .04em;
+      color: var(--ink)
+    }
+
+    .form-group label .req {
+      color: var(--rose);
+      margin-left: .15rem
+    }
+
+    .form-group label .hint {
+      font-weight: 400;
+      color: var(--ink-60);
+      font-size: .73rem;
+      margin-left: .3rem
+    }
+
+    .form-group input,
+    .form-group textarea {
+      width: 100%;
+      background: #fff;
+      border: 1.5px solid var(--ink-20);
+      border-radius: 12px;
+      padding: .85rem 1.1rem;
+      font-family: 'DM Sans', sans-serif;
+      font-size: .95rem;
+      color: var(--ink);
+      outline: none;
+      transition: border-color var(--trans), box-shadow var(--trans);
+      -webkit-appearance: none
+    }
+
+    .form-group input:focus,
+    .form-group textarea:focus {
+      border-color: var(--gold);
+      box-shadow: 0 0 0 3px rgba(184, 135, 58, .15)
+    }
+
+    .form-group input.invalid,
+    .form-group textarea.invalid {
+      border-color: var(--rose);
+      box-shadow: 0 0 0 3px rgba(201, 122, 122, .12)
+    }
+
+    .form-group textarea {
+      resize: vertical;
+      min-height: 100px
+    }
+
+    .form-group input::placeholder,
+    .form-group textarea::placeholder {
+      color: rgba(26, 22, 18, .3)
+    }
+
+    .form-error {
+      font-size: .74rem;
+      color: var(--rose);
+      min-height: 1rem;
+      display: block;
+      font-weight: 500
+    }
+
+    .upload-options {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: .75rem;
+      margin-bottom: .8rem
+    }
+
+    .upload-opt {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: .4rem;
+      padding: 1.2rem .75rem;
+      background: #fff;
+      border: 1.5px solid var(--ink-20);
+      border-radius: 14px;
+      cursor: pointer;
+      transition: all var(--trans);
+      text-align: center;
+      font-family: 'DM Sans', sans-serif
+    }
+
+    .upload-opt:hover {
+      border-color: var(--gold);
+      background: rgba(184, 135, 58, .05);
+      transform: translateY(-2px);
+      box-shadow: 0 4px 16px rgba(184, 135, 58, .12)
+    }
+
+    .upload-opt__icon {
+      font-size: 1.8rem;
+      line-height: 1
+    }
+
+    .upload-opt__label {
+      font-size: .85rem;
+      font-weight: 600;
+      color: var(--ink)
+    }
+
+    .upload-opt__hint {
+      font-size: .72rem;
+      color: var(--ink-60)
+    }
+
+    .file-drop {
+      border: 1.5px dashed var(--ink-20);
+      border-radius: 12px;
+      padding: 1.1rem;
+      text-align: center;
+      background: #fff;
+      transition: border-color var(--trans), background var(--trans);
+      cursor: pointer
+    }
+
+    .file-drop:hover,
+    .file-drop.drag-over {
+      border-color: var(--gold);
+      background: rgba(184, 135, 58, .04)
+    }
+
+    .file-drop__ui {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: .25rem;
+      pointer-events: none
+    }
+
+    .file-drop__icon {
+      font-size: 1.3rem;
+      color: var(--gold)
+    }
+
+    .file-drop__text {
+      font-size: .82rem;
+      font-weight: 500
+    }
+
+    .file-drop__hint {
+      font-size: .7rem;
+      color: var(--ink-60)
+    }
+
+    @media(hover:none) {
+      .file-drop.desktop-only {
+        display: none
+      }
+    }
+
+    .file-preview-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: .6rem;
+      margin-top: .6rem
+    }
+
+    .file-thumb-wrap {
+      position: relative;
+      width: 64px;
+      height: 64px
+    }
+
+    .file-thumb {
+      width: 64px;
+      height: 64px;
+      border-radius: 10px;
+      object-fit: cover;
+      border: 2px solid rgba(184, 135, 58, .3);
+      display: block
+    }
+
+    .file-thumb-remove {
+      position: absolute;
+      top: -6px;
+      right: -6px;
+      width: 20px;
+      height: 20px;
+      background: var(--rose);
+      color: #fff;
+      border: none;
+      border-radius: 50%;
+      font-size: .7rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center
+    }
+
+    .submit-wrap {
+      margin-top: .5rem
+    }
+
+    .btn-submit {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: .6rem;
+      width: 100%;
+      max-width: 420px;
+      padding: 1.05rem 2rem;
+      background: var(--ink);
+      color: var(--cream);
+      border: none;
+      border-radius: 50px;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 1rem;
+      font-weight: 600;
+      letter-spacing: .03em;
+      cursor: pointer;
+      transition: all var(--trans);
+      box-shadow: 0 6px 24px rgba(26, 22, 18, .22)
+    }
+
+    .btn-submit:hover {
+      background: var(--gold);
+      transform: translateY(-2px);
+      box-shadow: 0 10px 32px rgba(184, 135, 58, .3)
+    }
+
+    .btn-submit:disabled {
+      opacity: .65;
+      cursor: not-allowed;
+      transform: none
+    }
+
+    .btn__loader {
+      display: inline-block;
+      animation: spin 1s linear infinite
+    }
+
+    .footer {
+      background: #120f0c;
+      color: rgba(245, 240, 232, .5);
+      padding: 2.2rem 0
+    }
+
+    .footer__inner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 1rem
+    }
+
+    .footer__brand {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 1.15rem;
+      color: var(--cream);
+      display: flex;
+      align-items: center;
+      gap: .4rem
+    }
+
+    .footer__brand-icon {
+      color: var(--gold-lt)
+    }
+
+    .footer__brand p {
+      font-family: 'DM Sans', sans-serif;
+      font-size: .75rem;
+      color: rgba(245, 240, 232, .38);
+      margin-left: 1.4rem
+    }
+
+    .footer__copy {
+      font-size: .75rem
+    }
+
+    #toast {
+      position: fixed;
+      bottom: 2rem;
+      left: 50%;
+      transform: translateX(-50%) translateY(20px);
+      background: var(--ink);
+      color: var(--cream);
+      padding: 1.1rem 1.5rem;
+      border-radius: 14px;
+      box-shadow: 0 12px 40px rgba(26, 22, 18, .3);
+      z-index: 2000;
+      display: flex;
+      align-items: flex-start;
+      gap: .8rem;
+      max-width: 380px;
+      width: calc(100% - 2.5rem);
+      font-family: 'DM Sans', sans-serif;
+      font-size: .88rem;
+      line-height: 1.5;
+      opacity: 0;
+      transition: opacity .4s ease, transform .4s ease;
+      border-left: 3px solid var(--gold)
+    }
+
+    #toast .t-icon {
+      color: var(--gold-lt);
+      font-size: 1.2rem;
+      flex-shrink: 0;
+      margin-top: .1rem
+    }
+
+    #toast p {
+      margin: .15rem 0 0;
+      color: rgba(245, 240, 232, .6);
+      font-size: .8rem
+    }
+
+    #toast em {
+      font-style: normal;
+      color: var(--gold-lt)
+    }
+
+    @keyframes fadeUp {
+      from {
+        opacity: 0;
+        transform: translateY(20px)
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0)
+      }
+    }
+
+    @keyframes popIn {
+      from {
+        transform: scale(0);
+        opacity: 0
+      }
+
+      to {
+        transform: scale(1);
+        opacity: 1
+      }
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg)
+      }
+    }
+
+    @media(max-width:720px) {
+      .frame-grid {
+        grid-template-columns: repeat(2, 1fr)
+      }
+
+      .form-row {
+        grid-template-columns: 1fr
+      }
+
+      .steps-bar .step-item__label {
+        display: none
+      }
+    }
+
+    @media(max-width:480px) {
+      .frame-card__art {
+        height: 110px
+      }
+
+      .frame-art-inner {
+        width: 60px;
+        height: 72px
+      }
+
+      .topbar__help {
+        display: none
+      }
+
+      .footer__inner {
+        flex-direction: column;
+        text-align: center
+      }
+
+      .footer__brand {
+        flex-wrap: wrap;
+        justify-content: center
+      }
+
+      .footer__brand p {
+        margin-left: 0;
+        width: 100%;
+        text-align: center
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <header class="topbar">
+    <div class="topbar__logo"><span class="topbar__logo-icon">◈</span> Memory Frames </div>
+    <div class="topbar__help">Need help? Call us: <a href="tel:+8801700000000">01410-626685</a></div>
+  </header>
+
+  <div class="page-intro">
+    <h1>Pick a Frame. <em>Fill the Form.</em> We'll Do the Rest.</h1>
+    <p>Just follow two easy steps below. No account needed. We'll call you to confirm.</p>
+  </div>
+
+  <div class="steps-bar">
+    <div class="steps-bar__inner">
+      <div class="step-item active" id="stepItem1">
+        <div class="step-item__num">1</div>
+        <div class="step-item__label">Pick a Frame</div>
+      </div>
+      <div class="step-divider"></div>
+      <div class="step-item" id="stepItem2">
+        <div class="step-item__num">2</div>
+        <div class="step-item__label">Fill Your Details</div>
+      </div>
+      <div class="step-divider"></div>
+      <div class="step-item" id="stepItem3">
+        <div class="step-item__num">3</div>
+        <div class="step-item__label">We Contact You</div>
+      </div>
+    </div>
+  </div>
+
+  <main>
+    <section class="section">
+      <div class="container">
+        <div class="section-header">
+          <span class="section-label">Step 1</span>
+          <h2 class="section-title">Choose Your Frame Type</h2>
+          <p class="section-sub">Tap the frame you want. You can only pick one.</p>
+        </div>
+        <div class="frame-grid" id="frameGrid">
+          <div class="frame-card" data-id="1" data-name="Anniversary Frame" data-price="৳ 850"
+            onclick="selectFrame(this)">
+            <div class="frame-card__check">✓</div>
+            <div class="frame-card__art frame-card__art--anniversary">
+              <div class="frame-art-inner">
+                <div class="frame-art-icon">♥</div>
+                <div class="frame-art-text">ANNIVERSARY</div>
+              </div>
+              <div class="frame-card__badge">Bestseller</div>
+            </div>
+            <div class="frame-card__body">
+              <div class="frame-card__name">Anniversary Frame</div>
+              <div class="frame-card__price">Starting ৳ 850</div>
+              <div class="frame-card__select-hint">Tap to select →</div>
+            </div>
+          </div>
+          <div class="frame-card" data-id="2" data-name="Birthday Frame" data-price="৳ 650" onclick="selectFrame(this)">
+            <div class="frame-card__check">✓</div>
+            <div class="frame-card__art frame-card__art--birthday">
+              <div class="frame-art-inner">
+                <div class="frame-art-icon">✦</div>
+                <div class="frame-art-text">BIRTHDAY</div>
+              </div>
+            </div>
+            <div class="frame-card__body">
+              <div class="frame-card__name">Birthday Frame</div>
+              <div class="frame-card__price">Starting ৳ 650</div>
+              <div class="frame-card__select-hint">Tap to select →</div>
+            </div>
+          </div>
+          <div class="frame-card" data-id="3" data-name="Wedding Frame" data-price="৳ 1,100"
+            onclick="selectFrame(this)">
+            <div class="frame-card__check">✓</div>
+            <div class="frame-card__art frame-card__art--wedding">
+              <div class="frame-art-inner">
+                <div class="frame-art-icon">◈</div>
+                <div class="frame-art-text">WEDDING</div>
+              </div>
+              <div class="frame-card__badge frame-card__badge--new">New</div>
+            </div>
+            <div class="frame-card__body">
+              <div class="frame-card__name">Wedding Frame</div>
+              <div class="frame-card__price">Starting ৳ 1,100</div>
+              <div class="frame-card__select-hint">Tap to select →</div>
+            </div>
+          </div>
+          <div class="frame-card" data-id="4" data-name="Baby Frame" data-price="৳ 750" onclick="selectFrame(this)">
+            <div class="frame-card__check">✓</div>
+            <div class="frame-card__art frame-card__art--baby">
+              <div class="frame-art-inner">
+                <div class="frame-art-icon">🌿</div>
+                <div class="frame-art-text">BABY</div>
+              </div>
+            </div>
+            <div class="frame-card__body">
+              <div class="frame-card__name">Baby Frame</div>
+              <div class="frame-card__price">Starting ৳ 750</div>
+              <div class="frame-card__select-hint">Tap to select →</div>
+            </div>
+          </div>
+          <div class="frame-card" data-id="5" data-name="Graduation Frame" data-price="৳ 900"
+            onclick="selectFrame(this)">
+            <div class="frame-card__check">✓</div>
+            <div class="frame-card__art frame-card__art--graduation">
+              <div class="frame-art-inner">
+                <div class="frame-art-icon">★</div>
+                <div class="frame-art-text">GRADUATION</div>
+              </div>
+            </div>
+            <div class="frame-card__body">
+              <div class="frame-card__name">Graduation Frame</div>
+              <div class="frame-card__price">Starting ৳ 900</div>
+              <div class="frame-card__select-hint">Tap to select →</div>
+            </div>
+          </div>
+          <div class="frame-card" data-id="6" data-name="Custom Frame" data-price="৳ 1,500" onclick="selectFrame(this)">
+            <div class="frame-card__check">✓</div>
+            <div class="frame-card__art frame-card__art--custom">
+              <div class="frame-art-inner">
+                <div class="frame-art-icon">✎</div>
+                <div class="frame-art-text">CUSTOM</div>
+              </div>
+              <div class="frame-card__badge frame-card__badge--custom">Custom</div>
+            </div>
+            <div class="frame-card__body">
+              <div class="frame-card__name">Custom Frame</div>
+              <div class="frame-card__price">Starting ৳ 1,500</div>
+              <div class="frame-card__select-hint">Tap to select →</div>
+            </div>
+          </div>
+        </div>
+        <div class="frame-error" id="frameError">⚠ Please select a frame type first.</div>
+      </div>
+    </section>
+
+    <div class="section-divider"></div>
+
+    <section class="form-section" id="formSection">
+      <div class="container">
+        <div class="section-header">
+          <span class="section-label">Step 2</span>
+          <h2 class="section-title">Your Order Details</h2>
+          <p class="section-sub">Fill in the form below. All fields marked * are required.</p>
+        </div>
+
+        <div class="selected-frame-banner" id="selectedBanner">
+          <span class="selected-frame-banner__icon">🖼️</span>
+          <div class="selected-frame-banner__text">You selected: <strong id="bannerFrameName">—</strong> &nbsp;·&nbsp;
+            <strong id="bannerFramePrice">—</strong></div>
+          <span class="selected-frame-banner__change" onclick="clearFrame()">Change</span>
+        </div>
+
+        <form class="order-form" id="orderForm" novalidate>
+          <input type="hidden" id="categoryId" /><input type="hidden" id="categoryName" /><input type="hidden"
+            id="categoryPrice" />
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="fullName">Full Name <span class="req">*</span></label>
+              <input type="text" id="fullName" placeholder="Your full name" autocomplete="name" />
+              <span class="form-error" id="nameError"></span>
+            </div>
+            <div class="form-group">
+              <label for="phone">Phone Number <span class="req">*</span><span class="hint">(we'll call to
+                  confirm)</span></label>
+              <input type="tel" id="phone" placeholder="e.g. 01712345678" autocomplete="tel" />
+              <span class="form-error" id="phoneError"></span>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="specialDate">Special Date <span class="req">*</span><span class="hint">(birthday, anniversary,
+                etc.)</span></label>
+            <input type="date" id="specialDate" />
+            <span class="form-error" id="dateError"></span>
+          </div>
+
+          <div class="form-group">
+            <label for="message">Message for the Special Person <span class="req">*</span></label>
+            <textarea id="message" rows="4"
+              placeholder="e.g. Happy 10th Anniversary! Thank you for every beautiful moment..."></textarea>
+            <span class="form-error" id="messageError"></span>
+          </div>
+
+          <div class="form-group">
+            <label>Upload Your Photos <span class="req">*</span><span class="hint">(at least one photo
+                needed)</span></label>
+            <input type="file" id="photosGallery" multiple accept="image/*" style="display:none" />
+            <input type="file" id="photosCamera" multiple accept="image/*" capture="environment" style="display:none" />
+            <div class="upload-options">
+              <button type="button" class="upload-opt" id="btnGallery"><span class="upload-opt__icon">🖼️</span><span
+                  class="upload-opt__label">Choose from Gallery</span><span class="upload-opt__hint">Browse your
+                  photos</span></button>
+              <button type="button" class="upload-opt" id="btnCamera"><span class="upload-opt__icon">📷</span><span
+                  class="upload-opt__label">Take a Photo</span><span class="upload-opt__hint">Use your
+                  camera</span></button>
+            </div>
+            <div class="file-drop desktop-only" id="fileDrop">
+              <div class="file-drop__ui"><span class="file-drop__icon">⬆</span><span class="file-drop__text">Or drag
+                  &amp; drop photos here</span><span class="file-drop__hint">JPG, PNG, WEBP — max 10 MB each</span>
+              </div>
+            </div>
+            <div class="file-preview-grid" id="filePreview"></div>
+            <span class="form-error" id="photosError"></span>
+          </div>
+
+          <div class="submit-wrap">
+            <button type="submit" class="btn-submit" id="submitBtn">
+              <span class="btn__text">✦ Place My Order</span>
+              <span class="btn__loader" hidden>⟳</span>
+            </button>
+          </div>
+        </form>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="container footer__inner">
+      <div class="footer__brand">
+        <span class="footer__brand-icon">◈</span> Memory Frames
+      </div>
+      <div class="footer__brand">
+        <a href="admin.html" style="text-decoration: none;">Admin Portal</a>
+      </div>
+      <p class="footer__copy">© 2026 Alishan Moments. All rights reserved. Sub brand by <span
+          style="color:#ddab22"><b>Alishan</b></span>. Developed by <span style="color:#984fff"><b>RAMS Tech</b></span></p>
+    </div>
+  </footer>
+
+  <script>
+    let selectedFrameId = '', selectedFrameName = '', selectedFramePrice = '';
+
+    function selectFrame(card) {
+      document.querySelectorAll('.frame-card').forEach(c => c.classList.remove('selected'));
+      card.classList.add('selected');
+      selectedFrameId = card.dataset.id; selectedFrameName = card.dataset.name; selectedFramePrice = card.dataset.price;
+      document.getElementById('categoryId').value = selectedFrameId;
+      document.getElementById('categoryName').value = selectedFrameName;
+      document.getElementById('categoryPrice').value = selectedFramePrice;
+      document.getElementById('bannerFrameName').textContent = selectedFrameName;
+      document.getElementById('bannerFramePrice').textContent = selectedFramePrice;
+      document.getElementById('selectedBanner').classList.add('visible');
+      document.getElementById('frameError').classList.remove('visible');
+      document.getElementById('stepItem1').className = 'step-item done';
+      document.getElementById('stepItem2').classList.add('active');
+      setTimeout(() => document.getElementById('formSection').scrollIntoView({ behavior: 'smooth', block: 'start' }), 200);
+    }
+
+    function clearFrame() {
+      document.querySelectorAll('.frame-card').forEach(c => c.classList.remove('selected'));
+      selectedFrameId = selectedFrameName = selectedFramePrice = '';
+      ['categoryId', 'categoryName', 'categoryPrice'].forEach(id => document.getElementById(id).value = '');
+      document.getElementById('selectedBanner').classList.remove('visible');
+      document.getElementById('stepItem1').className = 'step-item active';
+      document.getElementById('stepItem2').classList.remove('active');
+      document.getElementById('frameGrid').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    let selectedFiles = [];
+    document.getElementById('btnGallery').onclick = () => document.getElementById('photosGallery').click();
+    document.getElementById('btnCamera').onclick = () => document.getElementById('photosCamera').click();
+    document.getElementById('photosGallery').onchange = e => addFiles(e.target.files);
+    document.getElementById('photosCamera').onchange = e => addFiles(e.target.files);
+
+    function addFiles(list) {
+      Array.from(list).forEach(f => {
+        if (!f.type.startsWith('image/')) return;
+        if (!selectedFiles.some(x => x.name === f.name && x.size === f.size)) selectedFiles.push(f);
+      });
+      renderPreviews();
+      if (selectedFiles.length) document.getElementById('photosError').textContent = '';
+    }
+    function removeFile(i) { selectedFiles.splice(i, 1); renderPreviews(); }
+    function renderPreviews() {
+      const fp = document.getElementById('filePreview'); fp.innerHTML = '';
+      selectedFiles.forEach((f, i) => {
+        const r = new FileReader(); r.onload = e => {
+          const w = document.createElement('div'); w.className = 'file-thumb-wrap';
+          const img = document.createElement('img'); img.src = e.target.result; img.className = 'file-thumb';
+          const b = document.createElement('button'); b.type = 'button'; b.className = 'file-thumb-remove'; b.innerHTML = '&#x2715;'; b.onclick = () => removeFile(i);
+          w.appendChild(img); w.appendChild(b); fp.appendChild(w);
+        }; r.readAsDataURL(f);
+      });
+    }
+    const fd = document.getElementById('fileDrop');
+    if (fd) {
+      fd.addEventListener('dragover', e => { e.preventDefault(); fd.classList.add('drag-over') });
+      ['dragleave', 'drop'].forEach(ev => fd.addEventListener(ev, e => {
+        fd.classList.remove('drag-over');
+        if (ev === 'drop' && e.dataTransfer.files.length) { e.preventDefault(); addFiles(e.dataTransfer.files); }
+      }));
+      fd.onclick = () => document.getElementById('photosGallery').click();
+    }
+
+    function setError(iid, eid, msg) {
+      const el = document.getElementById(iid), er = document.getElementById(eid);
+      if (msg) { if (el) el.classList.add('invalid'); er.textContent = msg; return false; }
+      if (el) el.classList.remove('invalid'); er.textContent = ''; return true;
+    }
+    function validate() {
+      let v = true;
+      if (!selectedFrameId) { document.getElementById('frameError').classList.add('visible'); document.getElementById('frameGrid').scrollIntoView({ behavior: 'smooth', block: 'start' }); v = false; }
+      const n = document.getElementById('fullName').value.trim();
+      if (!n) v = setError('fullName', 'nameError', 'Full name is required.') && v;
+      else if (n.length < 2) v = setError('fullName', 'nameError', 'Name too short.') && v;
+      else setError('fullName', 'nameError', '');
+      const p = document.getElementById('phone').value.trim();
+      if (!p) v = setError('phone', 'phoneError', 'Phone number is required.') && v;
+      else if (!/^\d{7,15}$/.test(p)) v = setError('phone', 'phoneError', 'Digits only, 7–15 numbers.') && v;
+      else setError('phone', 'phoneError', '');
+      const de = document.getElementById('specialDate');
+      if (!de.value) { de.classList.add('invalid'); document.getElementById('dateError').textContent = 'Please pick a date.'; v = false; }
+      else { de.classList.remove('invalid'); document.getElementById('dateError').textContent = ''; }
+      const m = document.getElementById('message').value.trim();
+      if (!m) v = setError('message', 'messageError', 'Please write a message.') && v;
+      else if (m.length < 5) v = setError('message', 'messageError', 'Message too short.') && v;
+      else setError('message', 'messageError', '');
+      if (!selectedFiles.length) { document.getElementById('photosError').textContent = 'Please upload at least one photo.'; v = false; }
+      else document.getElementById('photosError').textContent = '';
+      return v;
+    }
+    ['fullName', 'phone', 'message'].forEach(id => {
+      document.getElementById(id).addEventListener('input', () => {
+        if (document.getElementById(id).value.trim()) {
+          document.getElementById(id).classList.remove('invalid');
+          document.getElementById({ fullName: 'nameError', phone: 'phoneError', message: 'messageError' }[id]).textContent = '';
+        }
+      });
+    });
+    document.getElementById('specialDate').addEventListener('change', () => {
+      document.getElementById('specialDate').classList.remove('invalid');
+      document.getElementById('dateError').textContent = '';
+    });
+
+    document.getElementById('orderForm').addEventListener('submit', async e => {
+      e.preventDefault();
+      if (!validate()) return;
+      const btn = document.getElementById('submitBtn'), txt = btn.querySelector('.btn__text'), ldr = btn.querySelector('.btn__loader');
+      btn.disabled = true; txt.textContent = 'Submitting…'; ldr.hidden = false;
+
+      try {
+        // Build FormData — photos sent as real files (multipart/form-data)
+        const fd = new FormData();
+        fd.append('categoryId', selectedFrameId);
+        fd.append('categoryName', selectedFrameName);
+        fd.append('categoryPrice', selectedFramePrice);
+        fd.append('fullName', document.getElementById('fullName').value.trim());
+        fd.append('phone', document.getElementById('phone').value.trim());
+        fd.append('specialDate', document.getElementById('specialDate').value);
+        fd.append('message', document.getElementById('message').value.trim());
+        selectedFiles.forEach(f => fd.append('photos', f));
+
+        const res = await fetch('/api/orders', { method: 'POST', body: fd });
+        const data = await res.json();
+
+        if (!res.ok || !data.success) {
+          throw new Error(data.message || 'Something went wrong. Please try again.');
+        }
+
+        showToast(document.getElementById('fullName').value.trim(), selectedFrameName);
+        resetForm();
+      } catch (err) {
+        showErrorToast(err.message || 'Network error. Please check your connection.');
+      } finally {
+        btn.disabled = false; txt.textContent = '✦ Place My Order'; ldr.hidden = true;
+      }
+    });
+
+    function showToast(name, frame) {
+      const ex = document.getElementById('toast'); if (ex) ex.remove();
+      const t = document.createElement('div'); t.id = 'toast';
+      t.innerHTML = '<span class="t-icon">◈</span><div><strong>Order Received!</strong><p>Thank you, <em>' + (name || 'friend') + '</em>! Your <em>' + (frame || 'frame') + '</em> order is placed. We\'ll call you shortly.</p></div>';
+      document.body.appendChild(t);
+      requestAnimationFrame(() => requestAnimationFrame(() => { t.style.opacity = '1'; t.style.transform = 'translateX(-50%) translateY(0)'; }));
+      setTimeout(() => { t.style.opacity = '0'; t.style.transform = 'translateX(-50%) translateY(12px)'; setTimeout(() => t.remove(), 400); }, 6000);
+    }
+
+    function showErrorToast(msg) {
+      const ex = document.getElementById('toast'); if (ex) ex.remove();
+      const t = document.createElement('div'); t.id = 'toast';
+      t.style.borderLeftColor = '#c97a7a';
+      t.innerHTML = '<span class="t-icon" style="color:#c97a7a">⚠</span><div><strong>Order Failed</strong><p>' + msg + '</p></div>';
+      document.body.appendChild(t);
+      requestAnimationFrame(() => requestAnimationFrame(() => { t.style.opacity = '1'; t.style.transform = 'translateX(-50%) translateY(0)'; }));
+      setTimeout(() => { t.style.opacity = '0'; t.style.transform = 'translateX(-50%) translateY(12px)'; setTimeout(() => t.remove(), 400); }, 6000);
+    }
+
+    function resetForm() {
+      document.getElementById('orderForm').reset();
+      selectedFiles = []; document.getElementById('filePreview').innerHTML = '';
+      ['fullName', 'phone', 'specialDate', 'message'].forEach(id => { const el = document.getElementById(id); if (el) el.classList.remove('invalid'); });
+      ['nameError', 'phoneError', 'dateError', 'messageError', 'photosError'].forEach(id => { const el = document.getElementById(id); if (el) el.textContent = ''; });
+      clearFrame();
+    }
+  </script>
+</body>
+
+</html>
