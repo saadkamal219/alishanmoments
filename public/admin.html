@@ -271,21 +271,23 @@
 
     /* STATS ROW */
     .stats-row {
-      display: grid;
-      grid-template-columns: 1fr 320px;
+      display: flex;
+      flex-direction: column;
       gap: 1rem;
       padding: 1.5rem 2rem 0;
-      align-items: start;
     }
 
-    .stats-left {
+    .stats-top {
       display: grid;
-      grid-template-columns: repeat(3, 1fr);
+      grid-template-columns: repeat(4, 1fr);
       gap: 1rem;
     }
 
-    .stat-card--wide {
-      grid-column: 1 / -1;
+    .stats-bottom {
+      display: grid;
+      grid-template-columns: 1fr 260px;
+      gap: 1rem;
+      align-items: start;
     }
 
     .page-leaderboard {
@@ -1180,8 +1182,9 @@
 
     <!-- STATS -->
     <div class="stats-row" id="statsRow">
-      <!-- Left: 5 number cards in a 3-col grid -->
-      <div class="stats-left">
+
+      <!-- Row 1: the 4 live counters -->
+      <div class="stats-top">
         <div class="stat-card">
           <div class="stat-card__label">Total Orders</div>
           <div class="stat-card__value gold" id="statTotal">0</div>
@@ -1198,6 +1201,14 @@
           <div class="stat-card__label">Done / Archived</div>
           <div class="stat-card__value" id="statDone">0</div>
         </div>
+      </div>
+
+      <!-- Row 2: page leaderboard (left) + lifetime counter (right) -->
+      <div class="stats-bottom">
+        <div class="page-leaderboard">
+          <div class="page-lb__title">📘 Orders Completed by Page</div>
+          <div id="pageLbBody"><div class="page-lb__empty">Loading…</div></div>
+        </div>
         <div class="stat-card" style="border-color:rgba(122,158,188,.35);background:rgba(122,158,188,.07)">
           <div class="stat-card__label" style="color:var(--sky)">✦ All-Time Processed</div>
           <div class="stat-card__value" id="statProcessed" style="color:var(--sky)">0</div>
@@ -1205,11 +1216,6 @@
         </div>
       </div>
 
-      <!-- Right: Page leaderboard -->
-      <div class="page-leaderboard">
-        <div class="page-lb__title">📘 Orders Done by Page</div>
-        <div id="pageLbBody"><div class="page-lb__empty">Loading…</div></div>
-      </div>
     </div>
 
     <!-- TOOLBAR -->
