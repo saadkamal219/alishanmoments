@@ -8,6 +8,7 @@ const path       = require("path");
 const fs         = require("fs");
 const { Parser } = require("json2csv");
 const archiver   = require("archiver");
+const puppeteer  = require("puppeteer");
 
 const app  = express();
 const PORT = process.env.PORT || 3000;
@@ -63,6 +64,7 @@ const orderSchema = new mongoose.Schema(
     fullName:      { type: String, required: true, trim: true },
     phone:         { type: String, required: true, trim: true },
     specialDate:   { type: String, required: true },
+    fbPage:        { type: String, required: true, trim: true },
     message:       { type: String, required: true, trim: true },
     photos:        [photoSchema],
     status: {
@@ -81,9 +83,9 @@ const Order = mongoose.model("Order", orderSchema);
 
 app.post("/api/orders", upload.array("photos", 20), async (req, res) => {
   try {
-    const { categoryId, categoryName, categoryPrice, fullName, phone, specialDate, message } = req.body;
+    const { categoryId, categoryName, categoryPrice, fullName, phone, fbPage, specialDate, message } = req.body;
 
-    if (!categoryId || !fullName || !phone || !specialDate || !message) {
+    if (!categoryId || !fullName || !phone || !fbPage || !specialDate || !message) {
       return res.status(400).json({ success: false, message: "All fields are required." });
     }
     if (!/^\d{7,15}$/.test(phone)) {
@@ -101,7 +103,7 @@ app.post("/api/orders", upload.array("photos", 20), async (req, res) => {
 
     const order = new Order({
       categoryId, categoryName, categoryPrice,
-      fullName, phone, specialDate, message, photos,
+      fullName, phone, fbPage, specialDate, message, photos,
     });
 
     await order.save();
@@ -335,6 +337,7 @@ app.get("/api/orders/export/zip/:id", async (req, res) => {
   <div class="card__title">Customer Information</div>
   <div class="field"><div class="field__label">Full Name</div><div class="field__value">${o.fullName}</div></div>
   <div class="field"><div class="field__label">Phone</div><div class="field__value phone">${o.phone}</div></div>
+  <div class="field"><div class="field__label">Facebook Page</div><div class="field__value">${o.fbPage || '—'}</div></div>
 </div>
 
 <div class="card">
@@ -362,6 +365,20 @@ ${o.photos.length ? `
 </body>
 </html>`;
 
+    // ✅ Generate PDF from HTML using Puppeteer (headless Chrome)
+    const browser = await puppeteer.launch({
+      headless: "new",
+      args: ["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage"],
+    });
+    const page = await browser.newPage();
+    await page.setContent(detailsHtml, { waitUntil: "networkidle0" });
+    const pdfBuffer = await page.pdf({
+      format: "A4",
+      printBackground: true,
+      margin: { top: "20mm", bottom: "20mm", left: "15mm", right: "15mm" },
+    });
+    await browser.close();
+
     res.setHeader("Content-Type", "application/zip");
     res.setHeader("Content-Disposition", `attachment; filename="${zipName}"`);
 
@@ -369,12 +386,12 @@ ${o.photos.length ? `
     archive.on("error", (err) => { throw err; });
     archive.pipe(res);
 
-    archive.append(detailsHtml, { name: "order-details.html" });
+    // ✅ PDF instead of HTML
+    archive.append(pdfBuffer, { name: "order-details.pdf" });
 
     o.photos.forEach((p) => {
       const filePath = path.join(__dirname, "uploads", p.filename);
       if (fs.existsSync(filePath)) {
-        const ext      = path.extname(p.filename);
         const photoName = `photos/photo_${(p.originalName || p.filename).replace(/[^a-z0-9._-]/gi, "_")}`;
         archive.file(filePath, { name: photoName });
       }

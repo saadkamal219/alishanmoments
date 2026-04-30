@@ -1090,6 +1090,12 @@
           </div>
 
           <div class="form-group">
+            <label for="fbPage">Facebook Page Name <span class="req">*</span><span class="hint">(where you placed this order)</span></label>
+            <input type="text" id="fbPage" placeholder="e.g. Alishan Moments Official" autocomplete="off" />
+            <span class="form-error" id="fbPageError"></span>
+          </div>
+
+          <div class="form-group">
             <label for="specialDate">Special Date <span class="req">*</span><span class="hint">(birthday, anniversary,
                 etc.)</span></label>
             <input type="date" id="specialDate" />
@@ -1231,6 +1237,10 @@
       if (!p) v = setError('phone', 'phoneError', 'Phone number is required.') && v;
       else if (!/^\d{7,15}$/.test(p)) v = setError('phone', 'phoneError', 'Digits only, 7–15 numbers.') && v;
       else setError('phone', 'phoneError', '');
+      const fb = document.getElementById('fbPage').value.trim();
+      if (!fb) v = setError('fbPage', 'fbPageError', 'Please enter the Facebook page name.') && v;
+      else if (fb.length < 2) v = setError('fbPage', 'fbPageError', 'Page name too short.') && v;
+      else setError('fbPage', 'fbPageError', '');
       const de = document.getElementById('specialDate');
       if (!de.value) { de.classList.add('invalid'); document.getElementById('dateError').textContent = 'Please pick a date.'; v = false; }
       else { de.classList.remove('invalid'); document.getElementById('dateError').textContent = ''; }
@@ -1242,11 +1252,11 @@
       else document.getElementById('photosError').textContent = '';
       return v;
     }
-    ['fullName', 'phone', 'message'].forEach(id => {
+    ['fullName', 'phone', 'fbPage', 'message'].forEach(id => {
       document.getElementById(id).addEventListener('input', () => {
         if (document.getElementById(id).value.trim()) {
           document.getElementById(id).classList.remove('invalid');
-          document.getElementById({ fullName: 'nameError', phone: 'phoneError', message: 'messageError' }[id]).textContent = '';
+          document.getElementById({ fullName: 'nameError', phone: 'phoneError', fbPage: 'fbPageError', message: 'messageError' }[id]).textContent = '';
         }
       });
     });
@@ -1270,6 +1280,7 @@
         fd.append('fullName', document.getElementById('fullName').value.trim());
         fd.append('phone', document.getElementById('phone').value.trim());
         fd.append('specialDate', document.getElementById('specialDate').value);
+        fd.append('fbPage', document.getElementById('fbPage').value.trim());
         fd.append('message', document.getElementById('message').value.trim());
         selectedFiles.forEach(f => fd.append('photos', f));
 
@@ -1311,8 +1322,8 @@
     function resetForm() {
       document.getElementById('orderForm').reset();
       selectedFiles = []; document.getElementById('filePreview').innerHTML = '';
-      ['fullName', 'phone', 'specialDate', 'message'].forEach(id => { const el = document.getElementById(id); if (el) el.classList.remove('invalid'); });
-      ['nameError', 'phoneError', 'dateError', 'messageError', 'photosError'].forEach(id => { const el = document.getElementById(id); if (el) el.textContent = ''; });
+      ['fullName', 'phone', 'fbPage', 'specialDate', 'message'].forEach(id => { const el = document.getElementById(id); if (el) el.classList.remove('invalid'); });
+      ['nameError', 'phoneError', 'fbPageError', 'dateError', 'messageError', 'photosError'].forEach(id => { const el = document.getElementById(id); if (el) el.textContent = ''; });
       clearFrame();
     }
   </script>
