@@ -272,9 +272,109 @@
     /* STATS ROW */
     .stats-row {
       display: grid;
-      grid-template-columns: repeat(4, 1fr);
+      grid-template-columns: 1fr 320px;
       gap: 1rem;
       padding: 1.5rem 2rem 0;
+      align-items: start;
+    }
+
+    .stats-left {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1rem;
+    }
+
+    .stat-card--wide {
+      grid-column: 1 / -1;
+    }
+
+    .page-leaderboard {
+      background: var(--surface);
+      border: 1px solid rgba(122,158,188,.3);
+      border-radius: var(--r);
+      padding: 1.1rem 1.3rem;
+      display: flex;
+      flex-direction: column;
+      gap: .6rem;
+      animation: fadeUp .4s ease .3s both;
+    }
+
+    .page-lb__title {
+      font-size: .7rem;
+      font-weight: 600;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      color: var(--sky);
+      margin-bottom: .2rem;
+    }
+
+    .page-lb__empty {
+      font-size: .8rem;
+      color: var(--muted);
+      padding: .5rem 0;
+    }
+
+    .page-lb__row {
+      display: flex;
+      align-items: center;
+      gap: .6rem;
+      padding: .45rem 0;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .page-lb__row:last-child { border-bottom: none; }
+
+    .page-lb__rank {
+      font-size: .65rem;
+      font-weight: 700;
+      color: var(--muted);
+      width: 16px;
+      flex-shrink: 0;
+      text-align: center;
+    }
+
+    .page-lb__rank.gold { color: #e8c97a; }
+    .page-lb__rank.silver { color: #b0b8c4; }
+    .page-lb__rank.bronze { color: #c49060; }
+
+    .page-lb__bar-wrap {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: .2rem;
+      min-width: 0;
+    }
+
+    .page-lb__name {
+      font-size: .8rem;
+      font-weight: 500;
+      color: var(--text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .page-lb__bar-bg {
+      height: 4px;
+      background: var(--border);
+      border-radius: 2px;
+      overflow: hidden;
+    }
+
+    .page-lb__bar-fill {
+      height: 100%;
+      background: var(--sky);
+      border-radius: 2px;
+      transition: width .6s cubic-bezier(.4,0,.2,1);
+    }
+
+    .page-lb__count {
+      font-size: .85rem;
+      font-weight: 700;
+      color: var(--sky);
+      flex-shrink: 0;
+      min-width: 24px;
+      text-align: right;
     }
 
     .stat-card {
@@ -1080,26 +1180,35 @@
 
     <!-- STATS -->
     <div class="stats-row" id="statsRow">
-      <div class="stat-card">
-        <div class="stat-card__label">Total Orders</div>
-        <div class="stat-card__value gold" id="statTotal">0</div>
+      <!-- Left: 5 number cards in a 3-col grid -->
+      <div class="stats-left">
+        <div class="stat-card">
+          <div class="stat-card__label">Total Orders</div>
+          <div class="stat-card__value gold" id="statTotal">0</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-card__label">Pending Call</div>
+          <div class="stat-card__value amber" id="statPending">0</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-card__label">Confirmed</div>
+          <div class="stat-card__value sage" id="statConfirmed">0</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-card__label">Done / Archived</div>
+          <div class="stat-card__value" id="statDone">0</div>
+        </div>
+        <div class="stat-card" style="border-color:rgba(122,158,188,.35);background:rgba(122,158,188,.07)">
+          <div class="stat-card__label" style="color:var(--sky)">✦ All-Time Processed</div>
+          <div class="stat-card__value" id="statProcessed" style="color:var(--sky)">0</div>
+          <div style="font-size:.65rem;color:var(--muted);margin-top:.2rem">Lifetime total — never resets</div>
+        </div>
       </div>
-      <div class="stat-card">
-        <div class="stat-card__label">Pending Call</div>
-        <div class="stat-card__value amber" id="statPending">0</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-card__label">Confirmed</div>
-        <div class="stat-card__value sage" id="statConfirmed">0</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-card__label">Done / Archived</div>
-        <div class="stat-card__value" id="statDone">0</div>
-      </div>
-      <div class="stat-card" style="border-color:rgba(122,158,188,.35);background:rgba(122,158,188,.07)">
-        <div class="stat-card__label" style="color:var(--sky)">✦ All-Time Processed</div>
-        <div class="stat-card__value" id="statProcessed" style="color:var(--sky)">0</div>
-        <div style="font-size:.65rem;color:var(--muted);margin-top:.2rem">Lifetime total — never resets</div>
+
+      <!-- Right: Page leaderboard -->
+      <div class="page-leaderboard">
+        <div class="page-lb__title">📘 Orders Done by Page</div>
+        <div id="pageLbBody"><div class="page-lb__empty">Loading…</div></div>
       </div>
     </div>
 
@@ -1248,16 +1357,40 @@
     /* ════ STATS ════ */
     async function loadStats() {
       try {
-        const [{ stats }, processedRes] = await Promise.all([
+        const [{ stats }, processedRes, pagesRes] = await Promise.all([
           apiFetch('/orders/stats'),
           apiFetch('/stats/processed'),
+          apiFetch('/stats/pages'),
         ]);
         document.getElementById('statTotal').textContent = stats.total;
         document.getElementById('statPending').textContent = stats.pending;
         document.getElementById('statConfirmed').textContent = stats.confirmed;
         document.getElementById('statDone').textContent = stats.done;
         document.getElementById('statProcessed').textContent = processedRes.processed ?? 0;
+        renderPageLeaderboard(pagesRes.pages || []);
       } catch (e) { console.error('Stats error:', e); }
+    }
+
+    function renderPageLeaderboard(pages) {
+      const el = document.getElementById('pageLbBody');
+      if (!pages.length) {
+        el.innerHTML = '<div class="page-lb__empty">No completed orders yet.</div>';
+        return;
+      }
+      const max = pages[0].count;
+      const rankClass = ['gold','silver','bronze'];
+      const rankSymbol = ['🥇','🥈','🥉'];
+      el.innerHTML = pages.map((p, i) => `
+        <div class="page-lb__row">
+          <div class="page-lb__rank ${rankClass[i] || ''}">${rankSymbol[i] || (i+1)}</div>
+          <div class="page-lb__bar-wrap">
+            <div class="page-lb__name" title="${esc(p._id || '—')}">${esc(p._id || '—')}</div>
+            <div class="page-lb__bar-bg">
+              <div class="page-lb__bar-fill" style="width:${Math.round((p.count/max)*100)}%"></div>
+            </div>
+          </div>
+          <div class="page-lb__count">${p.count}</div>
+        </div>`).join('');
     }
 
     /* ════ UPDATE STATUS ════ */

@@ -182,6 +182,19 @@ app.get("/api/stats/processed", async (req, res) => {
   }
 });
 
+app.get("/api/stats/pages", async (req, res) => {
+  try {
+    const pages = await Order.aggregate([
+      { $match: { status: "done" } },
+      { $group: { _id: "$fbPage", count: { $sum: 1 } } },
+      { $sort: { count: -1 } },
+    ]);
+    res.json({ success: true, pages });
+  } catch (err) {
+    res.status(500).json({ success: false, message: "Server error." });
+  }
+});
+
 app.patch("/api/orders/:id/status", async (req, res) => {
   try {
     const { status } = req.body;
