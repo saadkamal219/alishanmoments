@@ -8,7 +8,7 @@ const path       = require("path");
 const fs         = require("fs");
 const { Parser } = require("json2csv");
 const archiver   = require("archiver");
-const puppeteer  = require("puppeteer");
+const PDFDocument = require("pdfkit");
 
 const app  = express();
 const PORT = process.env.PORT || 3000;
@@ -278,106 +278,99 @@ app.get("/api/orders/export/zip/:id", async (req, res) => {
     const submittedAt = o.createdAt ? new Date(o.createdAt).toLocaleString("en-GB", { day:"2-digit", month:"short", year:"numeric", hour:"2-digit", minute:"2-digit" }) : "—";
     const specialDate = o.specialDate ? new Date(o.specialDate + "T00:00:00").toLocaleDateString("en-GB", { day:"2-digit", month:"long", year:"numeric" }) : "—";
 
-    const photoItems = o.photos.map((p, i) => `
-      <div class="photo-item">
-        <div class="photo-num">Photo ${i + 1}</div>
-        <div class="photo-name">${p.originalName || p.filename}</div>
-        <div class="photo-hint">See photos/ folder in this ZIP</div>
-      </div>`).join("");
+    // ✅ Generate PDF using pdfkit — pure Node.js, no system dependencies
+    const pdfBuffer = await new Promise((resolve, reject) => {
+      const doc = new PDFDocument({ size: "A4", margin: 50 });
+      const chunks = [];
+      doc.on("data", chunk => chunks.push(chunk));
+      doc.on("end", () => resolve(Buffer.concat(chunks)));
+      doc.on("error", reject);
 
-    const detailsHtml = `<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>Order — ${o.fullName}</title>
-<style>
-  @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600&family=DM+Sans:wght@400;500;600&display=swap');
-  *{box-sizing:border-box;margin:0;padding:0}
-  body{font-family:'DM Sans',sans-serif;background:#f5f0e8;color:#1a1612;padding:2.5rem;max-width:720px;margin:0 auto}
-  .header{background:#1a1612;color:#f5f0e8;border-radius:14px;padding:2rem 2.5rem;margin-bottom:2rem;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:1rem}
-  .header__logo{font-family:'Cormorant Garamond',serif;font-size:1.5rem;color:#e8c97a}
-  .header__id{font-family:monospace;font-size:.72rem;color:rgba(245,240,232,.45);word-break:break-all;max-width:260px;text-align:right}
-  .status-chip{display:inline-block;padding:.3rem .85rem;border-radius:50px;font-size:.7rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase}
-  .status-pending{background:rgba(212,129,58,.15);color:#d4813a;border:1px solid rgba(212,129,58,.4)}
-  .status-confirmed{background:rgba(106,156,122,.15);color:#6a9c7a;border:1px solid rgba(106,156,122,.4)}
-  .status-done{background:rgba(26,22,18,.08);color:#888;border:1px solid rgba(26,22,18,.2)}
-  .card{background:#fff;border-radius:14px;padding:1.75rem 2rem;margin-bottom:1.25rem;box-shadow:0 2px 12px rgba(26,22,18,.07)}
-  .card__title{font-family:'Cormorant Garamond',serif;font-size:1.1rem;font-weight:600;color:#1a1612;margin-bottom:1.2rem;padding-bottom:.6rem;border-bottom:1px solid rgba(26,22,18,.08)}
-  .field{display:grid;grid-template-columns:140px 1fr;gap:.5rem;padding:.55rem 0;border-bottom:1px solid rgba(26,22,18,.05)}
-  .field:last-child{border-bottom:none}
-  .field__label{font-size:.72rem;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:rgba(26,22,18,.45);padding-top:.1rem}
-  .field__value{font-size:.9rem;color:#1a1612;line-height:1.55;word-break:break-word}
-  .field__value.phone{font-family:monospace;color:#b8873a;font-size:.92rem;font-weight:600}
-  .field__value.price{color:#b8873a;font-weight:700}
-  .message-box{background:#f5f0e8;border-radius:10px;padding:1.1rem 1.25rem;font-size:.9rem;line-height:1.7;white-space:pre-wrap;word-break:break-word;border-left:3px solid #b8873a;margin-top:.3rem}
-  .photo-item{display:flex;align-items:center;gap:.75rem;padding:.6rem 0;border-bottom:1px solid rgba(26,22,18,.05)}
-  .photo-item:last-child{border-bottom:none}
-  .photo-num{font-size:.7rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:rgba(26,22,18,.4);width:55px;flex-shrink:0}
-  .photo-name{font-size:.85rem;color:#1a1612;flex:1;word-break:break-all}
-  .photo-hint{font-size:.7rem;color:rgba(26,22,18,.4);flex-shrink:0}
-  .footer{text-align:center;font-size:.75rem;color:rgba(26,22,18,.35);margin-top:2rem;padding-top:1rem;border-top:1px solid rgba(26,22,18,.1)}
-  @media print{body{background:#fff;padding:1rem}.header{border-radius:0}}
-</style>
-</head>
-<body>
+      const INK    = "#1a1612";
+      const GOLD   = "#b8873a";
+      const MUTED  = "#888880";
+      const WHITE  = "#ffffff";
+      const CREAM  = "#f5f0e8";
+      const W      = doc.page.width - 100; // usable width (margins 50 each side)
 
-<div class="header">
-  <div>
-    <div class="header__logo">◈ Memory Frames</div>
-    <div style="margin-top:.5rem">${submittedAt}</div>
-  </div>
-  <div style="text-align:right">
-    <span class="status-chip status-${o.status}">${o.status.charAt(0).toUpperCase()+o.status.slice(1)}</span>
-    <div class="header__id">Order ID: ${o._id}</div>
-  </div>
-</div>
+      // ── HEADER BAR ──
+      doc.rect(50, 50, W, 70).fill(INK);
+      doc.fontSize(18).fillColor(GOLD).font("Helvetica-Bold")
+         .text("Memory Frames", 65, 65);
+      doc.fontSize(8).fillColor("#cccccc").font("Helvetica")
+         .text(submittedAt, 65, 90);
+      const statusColors = { pending: "#d4813a", confirmed: "#6a9c7a", done: "#888880" };
+      doc.fontSize(8).fillColor(statusColors[o.status] || GOLD).font("Helvetica-Bold")
+         .text(o.status.toUpperCase(), W - 30, 75, { align: "right", width: 80 });
+      doc.fontSize(6).fillColor("#888888").font("Helvetica")
+         .text("ID: " + o._id.toString(), W - 100, 90, { align: "right", width: 150 });
 
-<div class="card">
-  <div class="card__title">Customer Information</div>
-  <div class="field"><div class="field__label">Full Name</div><div class="field__value">${o.fullName}</div></div>
-  <div class="field"><div class="field__label">Phone</div><div class="field__value phone">${o.phone}</div></div>
-  <div class="field"><div class="field__label">Facebook Page</div><div class="field__value">${o.fbPage || '—'}</div></div>
-</div>
+      let y = 140;
 
-<div class="card">
-  <div class="card__title">Frame Details</div>
-  <div class="field"><div class="field__label">Frame Type</div><div class="field__value">${o.categoryName}</div></div>
-  <div class="field"><div class="field__label">Price</div><div class="field__value price">${o.categoryPrice}</div></div>
-  <div class="field"><div class="field__label">Special Date</div><div class="field__value">${specialDate}</div></div>
-</div>
+      // helper: draw a section card
+      function sectionTitle(title) {
+        doc.rect(50, y, W, 24).fill(CREAM);
+        doc.fontSize(10).fillColor(INK).font("Helvetica-Bold")
+           .text(title, 60, y + 7);
+        y += 30;
+      }
 
-<div class="card">
-  <div class="card__title">Personal Message</div>
-  <div class="message-box">${o.message}</div>
-</div>
+      function field(label, value) {
+        if (y > 750) { doc.addPage(); y = 50; }
+        doc.fontSize(7).fillColor(MUTED).font("Helvetica-Bold")
+           .text(label.toUpperCase(), 60, y, { width: 130 });
+        doc.fontSize(9).fillColor(INK).font("Helvetica")
+           .text(String(value || "—"), 200, y, { width: W - 150 });
+        y += 18;
+        doc.moveTo(50, y - 1).lineTo(50 + W, y - 1).strokeColor("#e8e0d0").lineWidth(0.5).stroke();
+      }
 
-${o.photos.length ? `
-<div class="card">
-  <div class="card__title">Uploaded Photos (${o.photos.length})</div>
-  ${photoItems}
-</div>` : ""}
+      // ── CUSTOMER INFO ──
+      sectionTitle("Customer Information");
+      field("Full Name",     o.fullName);
+      field("Phone",         o.phone);
+      field("Facebook Page", o.fbPage || "—");
+      y += 10;
 
-<div class="footer">
-  Generated by Memory Frames Admin Panel &nbsp;·&nbsp; ${new Date().toLocaleDateString("en-GB", {day:"2-digit",month:"long",year:"numeric"})}
-</div>
+      // ── FRAME DETAILS ──
+      sectionTitle("Frame Details");
+      field("Frame Type",   o.categoryName);
+      field("Price",        o.categoryPrice);
+      field("Special Date", specialDate);
+      y += 10;
 
-</body>
-</html>`;
+      // ── MESSAGE ──
+      sectionTitle("Personal Message");
+      if (y > 700) { doc.addPage(); y = 50; }
+      doc.rect(50, y, W, 1).fill(CREAM);
+      doc.fontSize(9).fillColor(INK).font("Helvetica")
+         .text(o.message || "—", 60, y + 8, { width: W - 20, lineGap: 4 });
+      y += doc.heightOfString(o.message || "—", { width: W - 20 }) + 24;
 
-    // ✅ Generate PDF from HTML using Puppeteer (headless Chrome)
-    const browser = await puppeteer.launch({
-      headless: "new",
-      args: ["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage"],
+      // ── PHOTOS LIST ──
+      if (o.photos && o.photos.length) {
+        y += 5;
+        sectionTitle(`Uploaded Photos (${o.photos.length})`);
+        o.photos.forEach((p, i) => {
+          if (y > 750) { doc.addPage(); y = 50; }
+          doc.fontSize(8).fillColor(MUTED).font("Helvetica-Bold")
+             .text(`Photo ${i + 1}`, 60, y, { width: 60 });
+          doc.fontSize(8).fillColor(INK).font("Helvetica")
+             .text(p.originalName || p.filename, 130, y, { width: W - 90 });
+          y += 16;
+        });
+      }
+
+      // ── FOOTER ──
+      const footerY = doc.page.height - 40;
+      doc.fontSize(7).fillColor(MUTED).font("Helvetica")
+         .text(
+           `Generated by Memory Frames Admin Panel  ·  ${new Date().toLocaleDateString("en-GB", { day:"2-digit", month:"long", year:"numeric" })}`,
+           50, footerY, { align: "center", width: W }
+         );
+
+      doc.end();
     });
-    const page = await browser.newPage();
-    await page.setContent(detailsHtml, { waitUntil: "networkidle0" });
-    const pdfBuffer = await page.pdf({
-      format: "A4",
-      printBackground: true,
-      margin: { top: "20mm", bottom: "20mm", left: "15mm", right: "15mm" },
-    });
-    await browser.close();
 
     res.setHeader("Content-Type", "application/zip");
     res.setHeader("Content-Disposition", `attachment; filename="${zipName}"`);
@@ -386,7 +379,6 @@ ${o.photos.length ? `
     archive.on("error", (err) => { throw err; });
     archive.pipe(res);
 
-    // ✅ PDF instead of HTML
     archive.append(pdfBuffer, { name: "order-details.pdf" });
 
     o.photos.forEach((p) => {
