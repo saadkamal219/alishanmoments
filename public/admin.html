@@ -1250,7 +1250,7 @@
       try {
         const [{ stats }, processedRes] = await Promise.all([
           apiFetch('/orders/stats'),
-          fetch(BASE_URL + '/api/stats/processed').then(r => r.json()),
+          apiFetch('/stats/processed'),
         ]);
         document.getElementById('statTotal').textContent = stats.total;
         document.getElementById('statPending').textContent = stats.pending;

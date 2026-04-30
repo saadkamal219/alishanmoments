@@ -47,7 +47,16 @@ const upload = multer({
 });
 
 mongoose.connect(process.env.MONGO_URI)
-  .then(() => console.log("✅ MongoDB Connected"))
+  .then(async () => {
+    console.log("✅ MongoDB Connected");
+    // Seed the counter from existing done orders if it doesn't exist yet
+    const existing = await Counter.findById("processed");
+    if (!existing) {
+      const doneCount = await Order.countDocuments({ status: "done" });
+      await Counter.create({ _id: "processed", value: doneCount });
+      console.log(`✅ Counter initialised at ${doneCount} (seeded from existing done orders)`);
+    }
+  })
   .catch((err) => console.log("❌ MongoDB Error:", err));
 
 const photoSchema = new mongoose.Schema({
