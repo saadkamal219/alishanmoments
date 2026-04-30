@@ -1150,6 +1150,7 @@
   </footer>
 
   <script>
+    const BASE_URL = "https://alishan-moments-backend.onrender.com";
     let selectedFrameId = '', selectedFrameName = '', selectedFramePrice = '';
 
     function selectFrame(card) {
@@ -1272,7 +1273,7 @@
         fd.append('message', document.getElementById('message').value.trim());
         selectedFiles.forEach(f => fd.append('photos', f));
 
-        const res = await fetch('/api/orders', { method: 'POST', body: fd });
+        const res = await fetch(`${BASE_URL}/api/orders`, {method: 'POST',body: fd});
         const data = await res.json();
 
         if (!res.ok || !data.success) {

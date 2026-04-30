@@ -1,3 +1,5 @@
+require("dotenv").config(); // ✅ MUST be first — loads env vars before anything uses them
+
 const express    = require("express");
 const mongoose   = require("mongoose");
 const multer     = require("multer");
@@ -42,8 +44,6 @@ const upload = multer({
   fileFilter,
   limits: { fileSize: 10 * 1024 * 1024 }, // 10 MB per photo
 });
-
-require("dotenv").config();
 
 mongoose.connect(process.env.MONGO_URI)
   .then(() => console.log("✅ MongoDB Connected"))
@@ -96,7 +96,7 @@ app.post("/api/orders", upload.array("photos", 20), async (req, res) => {
     const photos = req.files.map((f) => ({
       filename:     f.filename,
       originalName: f.originalname,
-      url:          `/uploads/${f.filename}`,
+      url:          `${BASE_URL}/uploads/${f.filename}`, // ✅ absolute URL — works on Render
     }));
 
     const order = new Order({
@@ -171,22 +171,7 @@ app.patch("/api/orders/:id/status", async (req, res) => {
   }
 });
 
-app.delete("/api/orders/:id", async (req, res) => {
-  try {
-    const order = await Order.findByIdAndDelete(req.params.id);
-    if (!order) return res.status(404).json({ success: false, message: "Order not found." });
-
-    order.photos.forEach((p) => {
-      const fp = path.join(__dirname, "uploads", p.filename);
-      if (fs.existsSync(fp)) fs.unlinkSync(fp);
-    });
-
-    res.json({ success: true, message: "Order deleted." });
-  } catch (err) {
-    res.status(500).json({ success: false, message: "Server error." });
-  }
-});
-
+// ✅ IMPORTANT: This route MUST come before DELETE /:id — otherwise "done" is matched as :id
 app.delete("/api/orders/done/all", async (req, res) => {
   try {
     const donOrders = await Order.find({ status: "done" });
@@ -200,6 +185,22 @@ app.delete("/api/orders/done/all", async (req, res) => {
 
     const result = await Order.deleteMany({ status: "done" });
     res.json({ success: true, deleted: result.deletedCount });
+  } catch (err) {
+    res.status(500).json({ success: false, message: "Server error." });
+  }
+});
+
+app.delete("/api/orders/:id", async (req, res) => {
+  try {
+    const order = await Order.findByIdAndDelete(req.params.id);
+    if (!order) return res.status(404).json({ success: false, message: "Order not found." });
+
+    order.photos.forEach((p) => {
+      const fp = path.join(__dirname, "uploads", p.filename);
+      if (fs.existsSync(fp)) fs.unlinkSync(fp);
+    });
+
+    res.json({ success: true, message: "Order deleted." });
   } catch (err) {
     res.status(500).json({ success: false, message: "Server error." });
   }
@@ -389,7 +390,8 @@ ${o.photos.length ? `
   }
 });
 
-app.get("*", (req, res) => {
+// ✅ Only serve index.html for non-API routes (prevents wildcard swallowing API calls)
+app.get(/^(?!\/api).*$/, (req, res) => {
   res.sendFile(path.join(__dirname, "public", "index.html"));
 });
 
