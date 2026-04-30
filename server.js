@@ -81,6 +81,15 @@ const orderSchema = new mongoose.Schema(
 
 const Order = mongoose.model("Order", orderSchema);
 
+// ── Lifetime processed counter ──────────────────────────────────────────────
+// A single document { _id: "processed", value: N } that only ever increments.
+// Survives order deletions — gives a true all-time "frames delivered" number.
+const counterSchema = new mongoose.Schema({
+  _id:   { type: String, required: true },
+  value: { type: Number, default: 0 },
+});
+const Counter = mongoose.model("Counter", counterSchema, "counters");
+
 app.post("/api/orders", upload.array("photos", 20), async (req, res) => {
   try {
     const { categoryId, categoryName, categoryPrice, fullName, phone, fbPage, specialDate, message } = req.body;
@@ -155,18 +164,40 @@ app.get("/api/orders/stats", async (req, res) => {
   }
 });
 
+app.get("/api/stats/processed", async (req, res) => {
+  try {
+    const doc = await Counter.findById("processed");
+    res.json({ success: true, processed: doc ? doc.value : 0 });
+  } catch (err) {
+    res.status(500).json({ success: false, message: "Server error." });
+  }
+});
+
 app.patch("/api/orders/:id/status", async (req, res) => {
   try {
     const { status } = req.body;
     if (!["pending", "confirmed", "done"].includes(status)) {
       return res.status(400).json({ success: false, message: "Invalid status." });
     }
+    // Fetch current status before updating so we know if this is a new "done"
+    const existing = await Order.findById(req.params.id).select("status");
+    if (!existing) return res.status(404).json({ success: false, message: "Order not found." });
+
     const order = await Order.findByIdAndUpdate(
       req.params.id,
       { status },
       { new: true }
     );
-    if (!order) return res.status(404).json({ success: false, message: "Order not found." });
+
+    // Only increment the lifetime counter when moving INTO "done" for the first time
+    if (status === "done" && existing.status !== "done") {
+      await Counter.findByIdAndUpdate(
+        "processed",
+        { $inc: { value: 1 } },
+        { upsert: true, new: true }
+      );
+    }
+
     res.json({ success: true, order });
   } catch (err) {
     res.status(500).json({ success: false, message: "Server error." });
