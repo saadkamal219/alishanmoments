@@ -304,6 +304,10 @@
       animation-delay: .2s
     }
 
+    .stat-card:nth-child(5) {
+      animation-delay: .25s
+    }
+
     .stat-card__label {
       font-size: .7rem;
       font-weight: 600;
@@ -1092,6 +1096,11 @@
         <div class="stat-card__label">Done / Archived</div>
         <div class="stat-card__value" id="statDone">0</div>
       </div>
+      <div class="stat-card" style="border-color:rgba(122,158,188,.35);background:rgba(122,158,188,.07)">
+        <div class="stat-card__label" style="color:var(--sky)">✦ All-Time Processed</div>
+        <div class="stat-card__value" id="statProcessed" style="color:var(--sky)">0</div>
+        <div style="font-size:.65rem;color:var(--muted);margin-top:.2rem">Lifetime total — never resets</div>
+      </div>
     </div>
 
     <!-- TOOLBAR -->
@@ -1239,11 +1248,15 @@
     /* ════ STATS ════ */
     async function loadStats() {
       try {
-        const { stats } = await apiFetch('/orders/stats');
+        const [{ stats }, processedRes] = await Promise.all([
+          apiFetch('/orders/stats'),
+          fetch(BASE_URL + '/api/stats/processed').then(r => r.json()),
+        ]);
         document.getElementById('statTotal').textContent = stats.total;
         document.getElementById('statPending').textContent = stats.pending;
         document.getElementById('statConfirmed').textContent = stats.confirmed;
         document.getElementById('statDone').textContent = stats.done;
+        document.getElementById('statProcessed').textContent = processedRes.processed ?? 0;
       } catch (e) { console.error('Stats error:', e); }
     }
 
@@ -1305,7 +1318,6 @@
           <td>
             <div class="order-name">${esc(order.fullName)}</div>
             <div class="order-phone">${esc(order.phone)}</div>
-            <div class="order-phone" style="color:var(--sky);margin-top:.15rem" title="Facebook Page">📘 ${esc(order.fbPage || '—')}</div>
           </td>
           <td>
             <div class="order-frame">${esc(order.categoryName)}</div>
