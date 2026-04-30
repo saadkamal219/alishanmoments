@@ -335,7 +335,7 @@ app.get("/api/orders/export/zip/:id", async (req, res) => {
       // ── FRAME DETAILS ──
       sectionTitle("Frame Details");
       field("Frame Type",   o.categoryName);
-      field("Price",        o.categoryPrice);
+      field("Price",        "Tk. " + String(o.categoryPrice || "").replace(/[^\x00-\x7F0-9.,\s]/g, "").trim());
       field("Special Date", specialDate);
       y += 10;
 
