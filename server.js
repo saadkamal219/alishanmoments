@@ -395,6 +395,6 @@ app.get("*", (req, res) => {
 
 app.listen(PORT, () => {
   console.log(`🚀  Memory Frames server running → http://localhost:${PORT}`);
-  console.log(`    Customer form : http://localhost:${PORT}/order.html`);
+  console.log(`    Customer form : http://localhost:${PORT}/index.html`);
   console.log(`    Admin panel   : http://localhost:${PORT}/admin.html`);
 });
