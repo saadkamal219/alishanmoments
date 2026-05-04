@@ -49,12 +49,41 @@ const upload = multer({
 mongoose.connect(process.env.MONGO_URI)
   .then(async () => {
     console.log("✅ MongoDB Connected");
-    // Seed the counter from existing done orders if it doesn't exist yet
-    const existing = await Counter.findById("processed");
-    if (!existing) {
+
+    // ── Seed all-time lifetime counter ──────────────────────────────────────
+    // On first run, count existing "done" orders so the number is not 0.
+    // After this, only the everDone flag controls increments.
+    const existingCounter = await Counter.findById("processed");
+    if (!existingCounter) {
       const doneCount = await Order.countDocuments({ status: "done" });
       await Counter.create({ _id: "processed", value: doneCount });
-      console.log(`✅ Counter initialised at ${doneCount} (seeded from existing done orders)`);
+      console.log(`✅ Lifetime counter seeded at ${doneCount}`);
+    }
+
+    // ── Seed per-page permanent counters ────────────────────────────────────
+    // On first run, build PageCounter from existing done orders so history
+    // is not lost on upgrade. After this, only everDone transitions add to it.
+    const existingPages = await PageCounter.countDocuments();
+    if (existingPages === 0) {
+      const pageGroups = await Order.aggregate([
+        { $match: { status: "done" } },
+        { $group: { _id: "$fbPage", count: { $sum: 1 } } },
+      ]);
+      if (pageGroups.length > 0) {
+        await PageCounter.insertMany(pageGroups.map(g => ({ _id: g._id, count: g.count })));
+        console.log(`✅ Per-page counters seeded for ${pageGroups.length} page(s)`);
+      }
+    }
+
+    // ── Backfill everDone on existing done orders ────────────────────────────
+    // Any orders already marked "done" before this update don't have everDone=true.
+    // Set it now so they are recognised as already-counted and won't double-count.
+    const backfilled = await Order.updateMany(
+      { status: "done", everDone: { $ne: true } },
+      { $set: { everDone: true } }
+    );
+    if (backfilled.modifiedCount > 0) {
+      console.log(`✅ Backfilled everDone=true on ${backfilled.modifiedCount} existing done order(s)`);
     }
   })
   .catch((err) => console.log("❌ MongoDB Error:", err));
@@ -81,23 +110,41 @@ const orderSchema = new mongoose.Schema(
       enum:    ["pending", "confirmed", "done"],
       default: "pending",
     },
+
+    // everDone: set true the FIRST time this order reaches "done".
+    // NEVER reset back to false on revert. This is the duplicate-count guard.
+    // Counters only increment when everDone flips false → true.
+    everDone: {
+      type:    Boolean,
+      default: false,
+    },
   },
   {
-    timestamps: true,   
-    collection: "orders", 
+    timestamps: true,
+    collection: "orders",
   }
 );
 
 const Order = mongoose.model("Order", orderSchema);
 
 // ── Lifetime processed counter ──────────────────────────────────────────────
-// A single document { _id: "processed", value: N } that only ever increments.
-// Survives order deletions — gives a true all-time "frames delivered" number.
+// Single document { _id: "processed", value: N } — only ever increments.
+// Never touched on order deletion. True all-time "frames delivered" total.
 const counterSchema = new mongoose.Schema({
   _id:   { type: String, required: true },
   value: { type: Number, default: 0 },
 });
 const Counter = mongoose.model("Counter", counterSchema, "counters");
+
+// ── Permanent per-page completed-order counter ───────────────────────────────
+// One document per Facebook page: { _id: "PageName", count: N }
+// Only ever increments when everDone flips false → true.
+// Survives order deletions — the leaderboard bars NEVER go backwards.
+const pageCounterSchema = new mongoose.Schema({
+  _id:   { type: String, required: true },  // Facebook page name is the key
+  count: { type: Number, default: 0 },
+});
+const PageCounter = mongoose.model("PageCounter", pageCounterSchema, "page_counters");
 
 app.post("/api/orders", upload.array("photos", 20), async (req, res) => {
   try {
@@ -184,11 +231,10 @@ app.get("/api/stats/processed", async (req, res) => {
 
 app.get("/api/stats/pages", async (req, res) => {
   try {
-    const pages = await Order.aggregate([
-      { $match: { status: "done" } },
-      { $group: { _id: "$fbPage", count: { $sum: 1 } } },
-      { $sort: { count: -1 } },
-    ]);
+    // Use the permanent PageCounter collection, not a live aggregation on orders.
+    // This means counts are preserved even after orders are deleted.
+    const pages = await PageCounter.find().sort({ count: -1 }).lean();
+    // Reshape to match the same { _id, count } format the frontend expects
     res.json({ success: true, pages });
   } catch (err) {
     res.status(500).json({ success: false, message: "Server error." });
@@ -202,7 +248,7 @@ app.patch("/api/orders/:id/status", async (req, res) => {
       return res.status(400).json({ success: false, message: "Invalid status." });
     }
     // Fetch current status before updating so we know if this is a new "done"
-    const existing = await Order.findById(req.params.id).select("status");
+    const existing = await Order.findById(req.params.id).select("status everDone fbPage");
     if (!existing) return res.status(404).json({ success: false, message: "Order not found." });
 
     const order = await Order.findByIdAndUpdate(
@@ -211,11 +257,25 @@ app.patch("/api/orders/:id/status", async (req, res) => {
       { new: true }
     );
 
-    // Only increment the lifetime counter when moving INTO "done" for the first time
-    if (status === "done" && existing.status !== "done") {
+    // Only increment counters the very first time this order ever reaches "done".
+    // We use the everDone flag (never reset on revert) as the guard.
+    // This prevents: done → revert → done from counting as 2 completed orders.
+    if (status === "done" && !existing.everDone) {
+      // Mark the order as ever-done (permanent, survives future reverts)
+      await Order.findByIdAndUpdate(req.params.id, { everDone: true });
+
+      // Increment the all-time lifetime processed counter
       await Counter.findByIdAndUpdate(
         "processed",
         { $inc: { value: 1 } },
+        { upsert: true, new: true }
+      );
+
+      // Increment the permanent per-page counter for this order's FB page
+      const pageName = existing.fbPage || order.fbPage || "Unknown";
+      await PageCounter.findByIdAndUpdate(
+        pageName,
+        { $inc: { count: 1 } },
         { upsert: true, new: true }
       );
     }
