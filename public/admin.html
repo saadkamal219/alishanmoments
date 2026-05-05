@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Alishan Moments - Admin Pannel</title>
+  <title>আলিশান মোমেন্টস — অ্যাডমিন প্যানেল</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link
     href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600&family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&family=Hind+Siliguri:wght@300;400;500;600;700&display=swap"
@@ -1209,7 +1209,7 @@
                 <div id="genderFemaleBar" style="height:100%;background:linear-gradient(90deg,#a94a7a,#c97a9a);border-radius:4px;width:0%;transition:width .8s cubic-bezier(.4,0,.2,1)"></div>
               </div>
             </div>
-            <!-- <div style="margin-top:.3rem;padding-top:.5rem;border-top:1px solid var(--border);font-size:.68rem;color:var(--muted);text-align:center" id="genderTotal">Total: 0</div> -->
+            <div style="margin-top:.3rem;padding-top:.5rem;border-top:1px solid var(--border);font-size:.68rem;color:var(--muted);text-align:center" id="genderTotal">Total: 0</div>
           </div>
         </div>
 
@@ -1232,7 +1232,7 @@
         <option value="confirmed">Confirmed</option>
         <option value="done">Done</option>
       </select>
-      <button class="btn-dl-all" onclick="downloadAllCSV()">⬇ Export All (CSV)</button>
+      <button class="btn-dl-all" onclick="openSalesExport()">⬇ Export All (PDF)</button>
       <button class="btn-del-done" onclick="requestDeleteDone()">🗑 Delete Done Orders</button>
     </div>
 
@@ -1268,12 +1268,6 @@
           </tr>
         </thead>
         <tbody id="orderTableBody"></tbody>
-        <tfoot id="orderTableFoot" style="display:none">
-          <tr style="background:rgba(196,154,58,.06)">
-            <td colspan="4" style="padding:.8rem 1rem;font-size:.8rem;font-weight:700;color:var(--gold-lt)">💰 Total Sales</td>
-            <td id="footTotalSales" colspan="7" style="padding:.8rem 1rem;font-size:1rem;font-weight:700;color:var(--gold-lt)"></td>
-          </tr>
-        </tfoot>
       </table>
       <div class="empty-state" id="emptyState" style="display:none">
         <div class="empty-state__icon">📭</div>
@@ -1297,6 +1291,35 @@
   <div class="lightbox" id="lightbox" onclick="closeLightbox()">
     <button class="lightbox__close" onclick="closeLightbox()">✕</button>
     <img id="lightboxImg" src="" alt="ছবির প্রিভিউ" />
+  </div>
+
+  <!-- SALES EXPORT MODAL -->
+  <div class="confirm-overlay" id="salesExportOverlay">
+    <div class="confirm-box" style="max-width:380px;padding:2rem 2.2rem">
+      <div style="display:flex;align-items:center;gap:.7rem;margin-bottom:1.2rem">
+        <div style="width:36px;height:36px;border-radius:50%;background:rgba(196,154,58,.12);display:flex;align-items:center;justify-content:center;font-size:1.1rem">🔐</div>
+        <div>
+          <h3 style="margin:0;font-size:1rem;color:var(--ink)">Sales Ledger Export</h3>
+          <p style="margin:.15rem 0 0;font-size:.72rem;color:var(--muted)">This report contains confidential financial data.</p>
+        </div>
+      </div>
+      <div style="margin-bottom:1.1rem">
+        <label style="display:block;font-size:.72rem;font-weight:700;color:var(--muted);letter-spacing:.06em;text-transform:uppercase;margin-bottom:.45rem">Authorization Password</label>
+        <input type="password" id="salesPdfPassword"
+          placeholder="Enter password…"
+          style="width:100%;box-sizing:border-box;padding:.75rem 1rem;border:1.5px solid var(--border);border-radius:10px;font-size:.9rem;font-family:inherit;background:var(--surface);color:var(--ink);outline:none;transition:border-color .2s"
+          onkeydown="if(event.key==='Enter')doSalesExport()"
+          onfocus="this.style.borderColor='var(--gold)'"
+          onblur="this.style.borderColor='var(--border)'" />
+        <div id="salesPdfError" style="margin-top:.45rem;font-size:.75rem;color:var(--rose);min-height:1rem"></div>
+      </div>
+      <div style="display:flex;gap:.7rem;justify-content:flex-end">
+        <button class="btn-cancel" onclick="closeSalesExport()">Cancel</button>
+        <button id="salesExportBtn"
+          style="padding:.6rem 1.3rem;border:none;border-radius:8px;background:var(--gold);color:#fff;font-weight:700;font-size:.85rem;cursor:pointer;transition:opacity .2s;font-family:inherit"
+          onclick="doSalesExport()">⬇ Download PDF</button>
+      </div>
+    </div>
   </div>
 
   <!-- CONFIRM DIALOG -->
@@ -1479,14 +1502,9 @@
         const { orders } = await apiFetch('/orders?' + params.toString());
 
         tbody.innerHTML = '';
-        if (!orders.length) { empty.style.display = 'block'; document.getElementById('orderTableFoot').style.display = 'none'; return; }
+        if (!orders.length) { empty.style.display = 'block'; return; }
 
-        let totalSales = 0;
         orders.forEach(order => {
-          // Extract numeric price for total sales
-          const priceNum = parseFloat(String(order.categoryPrice || '').replace(/[^\d.]/g, '')) || 0;
-          totalSales += priceNum;
-
           const id = order._id;
           const tr = document.createElement('tr');
           const genderLabel = order.gender === 'male'
@@ -1516,11 +1534,6 @@
         `;
           tbody.appendChild(tr);
         });
-
-        // Show total sales footer
-        const foot = document.getElementById('orderTableFoot');
-        foot.style.display = '';
-        document.getElementById('footTotalSales').textContent = `৳ ${totalSales.toLocaleString('en-IN')} (${orders.length} orders)`;
       } catch (e) {
         tbody.innerHTML = `<tr><td colspan="11" style="text-align:center;padding:2rem;color:var(--rose)">⚠ Failed to load orders: ${esc(e.message)}</td></tr>`;
       }
@@ -1570,9 +1583,66 @@
       window.location.href = '/api/orders/export/zip/' + id;
     }
 
-    function downloadAllCSV() {
-      showAdminToast('⬇ Preparing CSV download…');
-      window.location.href = '/api/orders/export/csv';
+    /* ════ SALES PDF EXPORT ════ */
+    function openSalesExport() {
+      document.getElementById('salesPdfPassword').value = '';
+      document.getElementById('salesPdfError').textContent = '';
+      document.getElementById('salesExportOverlay').classList.add('active');
+      setTimeout(() => document.getElementById('salesPdfPassword').focus(), 80);
+    }
+
+    function closeSalesExport() {
+      document.getElementById('salesExportOverlay').classList.remove('active');
+      document.getElementById('salesPdfPassword').value = '';
+      document.getElementById('salesPdfError').textContent = '';
+    }
+
+    async function doSalesExport() {
+      const pw  = document.getElementById('salesPdfPassword').value;
+      const btn = document.getElementById('salesExportBtn');
+      const err = document.getElementById('salesPdfError');
+      if (!pw) { err.textContent = 'Please enter the password.'; return; }
+
+      btn.textContent = 'Generating…';
+      btn.disabled    = true;
+      err.textContent = '';
+
+      try {
+        const res = await fetch('/api/orders/export/sales-pdf', {
+          method:  'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body:    JSON.stringify({ password: pw }),
+        });
+
+        if (res.status === 401) {
+          err.textContent = '✕ Incorrect password.';
+          document.getElementById('salesPdfPassword').value = '';
+          document.getElementById('salesPdfPassword').focus();
+          return;
+        }
+        if (!res.ok) {
+          err.textContent = '⚠ Export failed. Try again.';
+          return;
+        }
+
+        // Trigger browser download from blob
+        const blob     = await res.blob();
+        const url      = URL.createObjectURL(blob);
+        const a        = document.createElement('a');
+        const fname    = `alishan-moments-sales-${new Date().toISOString().slice(0,10)}.pdf`;
+        a.href         = url;
+        a.download     = fname;
+        a.click();
+        URL.revokeObjectURL(url);
+
+        closeSalesExport();
+        showAdminToast('✅ Sales PDF downloaded.', 'sage');
+      } catch (e) {
+        err.textContent = '⚠ Network error: ' + e.message;
+      } finally {
+        btn.textContent = '⬇ Download PDF';
+        btn.disabled    = false;
+      }
     }
 
     /* ════ DELETE FLOW ════ */
