@@ -642,7 +642,7 @@ app.get("/api/orders/export/zip/:id", async (req, res) => {
 app.post("/api/orders/export/sales-pdf", async (req, res) => {
   try {
     const { password } = req.body;
-    const SALES_PASSWORD = process.env.SALES_PDF_PASSWORD || "alishan@sales2026";
+    const SALES_PASSWORD = process.env.SALES_PDF_PASSWORD || "tmrekhanekikaj";
     if (!password || password !== SALES_PASSWORD) {
       return res.status(401).json({ success: false, message: "Invalid password." });
     }
