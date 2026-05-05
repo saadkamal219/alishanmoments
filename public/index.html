@@ -1,13 +1,13 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="bn">
 
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Alishan Moments — Place Your Order</title>
+  <title>আলিশান মোমেন্টস — অর্ডার করুন</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link
-    href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400&family=DM+Sans:wght@300;400;500;600&display=swap"
+    href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400&family=DM+Sans:wght@300;400;500;600&family=Hind+Siliguri:wght@300;400;500;600&display=swap"
     rel="stylesheet" />
   <style>
     *,
@@ -38,7 +38,7 @@
     }
 
     body {
-      font-family: 'DM Sans', sans-serif;
+      font-family: 'Hind Siliguri', 'DM Sans', sans-serif;
       background: var(--cream);
       color: var(--ink);
       overflow-x: hidden;
@@ -579,6 +579,54 @@
       min-height: 100px
     }
 
+    .gender-options {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: .75rem;
+    }
+
+    .gender-opt {
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .gender-opt input[type="radio"] {
+      display: none;
+    }
+
+    .gender-opt__box {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: .4rem;
+      padding: .85rem 1.1rem;
+      background: #fff;
+      border: 1.5px solid var(--ink-20);
+      border-radius: 12px;
+      font-family: 'DM Sans', sans-serif;
+      font-size: .92rem;
+      color: var(--ink-60);
+      font-weight: 500;
+      transition: all var(--trans);
+      cursor: pointer;
+    }
+
+    .gender-opt:hover .gender-opt__box {
+      border-color: var(--gold);
+      color: var(--ink);
+    }
+
+    .gender-opt input[type="radio"]:checked + .gender-opt__box {
+      border-color: var(--gold);
+      background: rgba(184, 135, 58, .08);
+      color: var(--ink);
+      box-shadow: 0 0 0 3px rgba(184, 135, 58, .15);
+    }
+
+    .gender-opt input[type="radio"].invalid + .gender-opt__box {
+      border-color: var(--rose);
+    }
+
     .form-group input::placeholder,
     .form-group textarea::placeholder {
       color: rgba(26, 22, 18, .3)
@@ -927,29 +975,29 @@
       <img src="images/whiteLogo.svg" alt="alishan-logo" width="44px" height="40px">
       <span>Alishan Moments</span>
     </div>
-    <div class="topbar__help">Need help? Call us: <a href="tel:+8801700000000">01410-626685</a></div>
+    <div class="topbar__help">সাহায্য দরকার? কল করুন: <a href="tel:+8801410626685">01410-626685</a></div>
   </header>
 
   <div class="page-intro">
-    <h1>Pick a Frame. <em>Fill the Form.</em> We'll Do the Rest.</h1>
-    <p>Just follow two easy steps below. No account needed. We'll call you to confirm.</p>
+    <h1>একটি ফ্রেম বেছে নিন। <em>ফর্ম পূরণ করুন।</em> বাকিটা আমরা করবো।</h1>
+    <p>নিচের সহজ দুটি ধাপ অনুসরণ করুন। কোনো অ্যাকাউন্ট লাগবে না। নিশ্চিত করতে আমরা কল করবো।</p>
   </div>
 
   <div class="steps-bar">
     <div class="steps-bar__inner">
       <div class="step-item active" id="stepItem1">
         <div class="step-item__num">1</div>
-        <div class="step-item__label">Pick a Frame</div>
+        <div class="step-item__label">ফ্রেম বাছুন</div>
       </div>
       <div class="step-divider"></div>
       <div class="step-item" id="stepItem2">
         <div class="step-item__num">2</div>
-        <div class="step-item__label">Fill Your Details</div>
+        <div class="step-item__label">তথ্য পূরণ করুন</div>
       </div>
       <div class="step-divider"></div>
       <div class="step-item" id="stepItem3">
         <div class="step-item__num">3</div>
-        <div class="step-item__label">We Contact You</div>
+        <div class="step-item__label">আমরা যোগাযোগ করবো</div>
       </div>
     </div>
   </div>
@@ -958,9 +1006,9 @@
     <section class="section">
       <div class="container">
         <div class="section-header">
-          <span class="section-label">Step 1</span>
-          <h2 class="section-title">Choose Your Frame Type</h2>
-          <p class="section-sub">Tap the frame you want. You can only pick one.</p>
+          <span class="section-label">ধাপ ১</span>
+          <h2 class="section-title">আপনার ফ্রেমের ধরন বেছে নিন</h2>
+          <p class="section-sub">যে ফ্রেমটি চান সেটিতে ট্যাপ করুন। শুধুমাত্র একটি বেছে নিতে পারবেন।</p>
         </div>
         <div class="frame-grid" id="frameGrid">
           <div class="frame-card" data-id="1" data-name="Anniversary Frame" data-price="৳ 850"
@@ -969,14 +1017,14 @@
             <div class="frame-card__art frame-card__art--anniversary">
               <div class="frame-art-inner">
                 <div class="frame-art-icon">♥</div>
-                <div class="frame-art-text">ANNIVERSARY</div>
+                <div class="frame-art-text">বার্ষিকী</div>
               </div>
-              <div class="frame-card__badge">Bestseller</div>
+              <div class="frame-card__badge">সেরা বিক্রি</div>
             </div>
             <div class="frame-card__body">
-              <div class="frame-card__name">Anniversary Frame</div>
-              <div class="frame-card__price">Starting ৳ 850</div>
-              <div class="frame-card__select-hint">Tap to select →</div>
+              <div class="frame-card__name">বার্ষিকী ফ্রেম</div>
+              <div class="frame-card__price">শুরু ৳ ৮৫০</div>
+              <div class="frame-card__select-hint">বেছে নিতে ট্যাপ করুন →</div>
             </div>
           </div>
           <div class="frame-card" data-id="2" data-name="Birthday Frame" data-price="৳ 650" onclick="selectFrame(this)">
@@ -984,13 +1032,13 @@
             <div class="frame-card__art frame-card__art--birthday">
               <div class="frame-art-inner">
                 <div class="frame-art-icon">✦</div>
-                <div class="frame-art-text">BIRTHDAY</div>
+                <div class="frame-art-text">জন্মদিন</div>
               </div>
             </div>
             <div class="frame-card__body">
-              <div class="frame-card__name">Birthday Frame</div>
-              <div class="frame-card__price">Starting ৳ 650</div>
-              <div class="frame-card__select-hint">Tap to select →</div>
+              <div class="frame-card__name">জন্মদিন ফ্রেম</div>
+              <div class="frame-card__price">শুরু ৳ ৬৫০</div>
+              <div class="frame-card__select-hint">বেছে নিতে ট্যাপ করুন →</div>
             </div>
           </div>
           <div class="frame-card" data-id="3" data-name="Wedding Frame" data-price="৳ 1,100"
@@ -999,14 +1047,14 @@
             <div class="frame-card__art frame-card__art--wedding">
               <div class="frame-art-inner">
                 <div class="frame-art-icon">◈</div>
-                <div class="frame-art-text">WEDDING</div>
+                <div class="frame-art-text">বিবাহ</div>
               </div>
-              <div class="frame-card__badge frame-card__badge--new">New</div>
+              <div class="frame-card__badge frame-card__badge--new">নতুন</div>
             </div>
             <div class="frame-card__body">
-              <div class="frame-card__name">Wedding Frame</div>
-              <div class="frame-card__price">Starting ৳ 1,100</div>
-              <div class="frame-card__select-hint">Tap to select →</div>
+              <div class="frame-card__name">বিবাহ ফ্রেম</div>
+              <div class="frame-card__price">শুরু ৳ ১,১০০</div>
+              <div class="frame-card__select-hint">বেছে নিতে ট্যাপ করুন →</div>
             </div>
           </div>
           <div class="frame-card" data-id="4" data-name="Baby Frame" data-price="৳ 750" onclick="selectFrame(this)">
@@ -1014,13 +1062,13 @@
             <div class="frame-card__art frame-card__art--baby">
               <div class="frame-art-inner">
                 <div class="frame-art-icon">🌿</div>
-                <div class="frame-art-text">BABY</div>
+                <div class="frame-art-text">শিশু</div>
               </div>
             </div>
             <div class="frame-card__body">
-              <div class="frame-card__name">Baby Frame</div>
-              <div class="frame-card__price">Starting ৳ 750</div>
-              <div class="frame-card__select-hint">Tap to select →</div>
+              <div class="frame-card__name">শিশু ফ্রেম</div>
+              <div class="frame-card__price">শুরু ৳ ৭৫০</div>
+              <div class="frame-card__select-hint">বেছে নিতে ট্যাপ করুন →</div>
             </div>
           </div>
           <div class="frame-card" data-id="5" data-name="Graduation Frame" data-price="৳ 900"
@@ -1029,13 +1077,13 @@
             <div class="frame-card__art frame-card__art--graduation">
               <div class="frame-art-inner">
                 <div class="frame-art-icon">★</div>
-                <div class="frame-art-text">GRADUATION</div>
+                <div class="frame-art-text">গ্র্যাজুয়েশন</div>
               </div>
             </div>
             <div class="frame-card__body">
-              <div class="frame-card__name">Graduation Frame</div>
-              <div class="frame-card__price">Starting ৳ 900</div>
-              <div class="frame-card__select-hint">Tap to select →</div>
+              <div class="frame-card__name">গ্র্যাজুয়েশন ফ্রেম</div>
+              <div class="frame-card__price">শুরু ৳ ৯০০</div>
+              <div class="frame-card__select-hint">বেছে নিতে ট্যাপ করুন →</div>
             </div>
           </div>
           <div class="frame-card" data-id="6" data-name="Custom Frame" data-price="৳ 1,500" onclick="selectFrame(this)">
@@ -1043,18 +1091,18 @@
             <div class="frame-card__art frame-card__art--custom">
               <div class="frame-art-inner">
                 <div class="frame-art-icon">✎</div>
-                <div class="frame-art-text">CUSTOM</div>
+                <div class="frame-art-text">কাস্টম</div>
               </div>
-              <div class="frame-card__badge frame-card__badge--custom">Custom</div>
+              <div class="frame-card__badge frame-card__badge--custom">কাস্টম</div>
             </div>
             <div class="frame-card__body">
-              <div class="frame-card__name">Custom Frame</div>
-              <div class="frame-card__price">Starting ৳ 1,500</div>
-              <div class="frame-card__select-hint">Tap to select →</div>
+              <div class="frame-card__name">কাস্টম ফ্রেম</div>
+              <div class="frame-card__price">শুরু ৳ ১,৫০০</div>
+              <div class="frame-card__select-hint">বেছে নিতে ট্যাপ করুন →</div>
             </div>
           </div>
         </div>
-        <div class="frame-error" id="frameError">⚠ Please select a frame type first.</div>
+        <div class="frame-error" id="frameError">⚠ প্রথমে একটি ফ্রেম বেছে নিন।</div>
       </div>
     </section>
 
@@ -1063,17 +1111,17 @@
     <section class="form-section" id="formSection">
       <div class="container">
         <div class="section-header">
-          <span class="section-label">Step 2</span>
-          <h2 class="section-title">Your Order Details</h2>
-          <p class="section-sub">Fill in the form below. All fields marked * are required.</p>
+          <span class="section-label">ধাপ ২</span>
+          <h2 class="section-title">আপনার অর্ডারের তথ্য</h2>
+          <p class="section-sub">নিচের ফর্মটি পূরণ করুন। * চিহ্নিত সব ঘর পূরণ করা বাধ্যতামূলক।</p>
         </div>
 
         <div class="selected-frame-banner" id="selectedBanner">
           <span class="selected-frame-banner__icon">🖼️</span>
-          <div class="selected-frame-banner__text">You selected: <strong id="bannerFrameName">—</strong> &nbsp;·&nbsp;
+          <div class="selected-frame-banner__text">আপনি বেছে নিয়েছেন: <strong id="bannerFrameName">—</strong> &nbsp;·&nbsp;
             <strong id="bannerFramePrice">—</strong>
           </div>
-          <span class="selected-frame-banner__change" onclick="clearFrame()">Change</span>
+          <span class="selected-frame-banner__change" onclick="clearFrame()">পরিবর্তন করুন</span>
         </div>
 
         <form class="order-form" id="orderForm" novalidate>
@@ -1082,55 +1130,70 @@
 
           <div class="form-row">
             <div class="form-group">
-              <label for="fullName">Full Name <span class="req">*</span></label>
-              <input type="text" id="fullName" placeholder="Your full name" autocomplete="name" />
+              <label for="fullName">পুরো নাম <span class="req">*</span></label>
+              <input type="text" id="fullName" placeholder="আপনার পুরো নাম" autocomplete="name" />
               <span class="form-error" id="nameError"></span>
             </div>
             <div class="form-group">
-              <label for="phone">Phone Number <span class="req">*</span><span class="hint">(we'll call to
-                  confirm)</span></label>
-              <input type="tel" id="phone" placeholder="e.g. 01712345678" autocomplete="tel" />
+              <label for="phone">ফোন নম্বর <span class="req">*</span><span class="hint">(নিশ্চিত করতে কল করবো)</span></label>
+              <input type="tel" id="phone" placeholder="যেমন: ০১৭১২৩৪৫৬৭৮" autocomplete="tel" />
               <span class="form-error" id="phoneError"></span>
             </div>
           </div>
 
           <div class="form-group">
-            <label for="fbPage">Facebook Page Name <span class="req">*</span><span class="hint">(where you placed this
-                order)</span></label>
-            <input type="text" id="fbPage" placeholder="e.g. Alishan Moments Official" autocomplete="off" />
+            <label for="fbPage">ফেসবুক পেজের নাম <span class="req">*</span><span class="hint">(যে পেজ থেকে অর্ডার করেছেন)</span></label>
+            <input type="text" id="fbPage" placeholder="যেমন: Alishan Moments Official" autocomplete="off" />
             <span class="form-error" id="fbPageError"></span>
           </div>
 
+          <div class="form-row">
+            <div class="form-group">
+              <label>লিঙ্গ <span class="req">*</span></label>
+              <div class="gender-options">
+                <label class="gender-opt">
+                  <input type="radio" name="gender" id="genderMale" value="male" />
+                  <span class="gender-opt__box">♂ পুরুষ</span>
+                </label>
+                <label class="gender-opt">
+                  <input type="radio" name="gender" id="genderFemale" value="female" />
+                  <span class="gender-opt__box">♀ মহিলা</span>
+                </label>
+              </div>
+              <span class="form-error" id="genderError"></span>
+            </div>
+            <div class="form-group">
+              <label for="specialName">ফ্রেমে প্রদর্শিত নাম <span class="req">*</span><span class="hint">(ফ্রেমে যে নাম থাকবে)</span></label>
+              <input type="text" id="specialName" placeholder="যেমন: রাহেলা ও করিম" autocomplete="off" />
+              <span class="form-error" id="specialNameError"></span>
+            </div>
+          </div>
+
           <div class="form-group">
-            <label for="specialDate">Special Date <span class="req">*</span><span class="hint">(birthday, anniversary,
-                etc.)</span></label>
+            <label for="specialDate">বিশেষ তারিখ <span class="req">*</span><span class="hint">(জন্মদিন, বার্ষিকী ইত্যাদি)</span></label>
             <input type="date" id="specialDate" />
             <span class="form-error" id="dateError"></span>
           </div>
 
           <div class="form-group">
-            <label for="message">Message for the Special Person <span class="req">*</span></label>
+            <label for="message">প্রিয়জনের জন্য বার্তা <span class="req">*</span></label>
             <textarea id="message" rows="4"
-              placeholder="e.g. Happy 10th Anniversary! Thank you for every beautiful moment..."></textarea>
+              placeholder="যেমন: শুভ ১০ম বার্ষিকী! প্রতিটি সুন্দর মুহূর্তের জন্য ধন্যবাদ..."></textarea>
             <span class="form-error" id="messageError"></span>
           </div>
 
           <div class="form-group">
-            <label>Upload Your Photos <span class="req">*</span><span class="hint">(at least one photo
-                needed)</span></label>
+            <label>আপনার ছবি আপলোড করুন <span class="req">*</span><span class="hint">(কমপক্ষে একটি ছবি প্রয়োজন)</span></label>
             <input type="file" id="photosGallery" multiple accept="image/*" style="display:none" />
             <input type="file" id="photosCamera" multiple accept="image/*" capture="environment" style="display:none" />
             <div class="upload-options">
               <button type="button" class="upload-opt" id="btnGallery"><span class="upload-opt__icon">🖼️</span><span
-                  class="upload-opt__label">Choose from Gallery</span><span class="upload-opt__hint">Browse your
-                  photos</span></button>
+                  class="upload-opt__label">গ্যালারি থেকে বেছে নিন</span><span class="upload-opt__hint">আপনার ছবি দেখুন</span></button>
               <button type="button" class="upload-opt" id="btnCamera"><span class="upload-opt__icon">📷</span><span
-                  class="upload-opt__label">Take a Photo</span><span class="upload-opt__hint">Use your
-                  camera</span></button>
+                  class="upload-opt__label">ছবি তুলুন</span><span class="upload-opt__hint">ক্যামেরা ব্যবহার করুন</span></button>
             </div>
             <div class="file-drop desktop-only" id="fileDrop">
-              <div class="file-drop__ui"><span class="file-drop__icon">⬆</span><span class="file-drop__text">Or drag
-                  &amp; drop photos here</span><span class="file-drop__hint">JPG, PNG, WEBP — max 10 MB each</span>
+              <div class="file-drop__ui"><span class="file-drop__icon">⬆</span><span class="file-drop__text">অথবা এখানে ছবি টেনে আনুন</span><span class="file-drop__hint">JPG, PNG, WEBP — সর্বোচ্চ ১০ MB প্রতিটি</span>
               </div>
             </div>
             <div class="file-preview-grid" id="filePreview"></div>
@@ -1139,7 +1202,7 @@
 
           <div class="submit-wrap">
             <button type="submit" class="btn-submit" id="submitBtn">
-              <span class="btn__text">✦ Place My Order</span>
+              <span class="btn__text">✦ অর্ডার দিন</span>
               <span class="btn__loader" hidden>⟳</span>
             </button>
           </div>
@@ -1155,10 +1218,10 @@
         <span>Alishan Moments</span>
       </div>
       <div class="footer__brand">
-        <a href="admin.html" style="text-decoration: none;">Admin Portal</a>
+        <a href="admin.html" style="text-decoration: none;">অ্যাডমিন পোর্টাল</a>
       </div>
-      <p class="footer__copy" style="font-size: 14px;">© 2026 Alishan Moments. All rights reserved. Sub brand by <span
-          style="color:#efb81e"><b>Alishan</b></span>. Developed by <span style="color:#8335f1"><b>RAMS Tech</b></span>
+      <p class="footer__copy" style="font-size: 14px;">© ২০২৬ আলিশান মোমেন্টস। সর্বস্বত্ব সংরক্ষিত। সাব ব্র্যান্ড: <span
+          style="color:#efb81e"><b>Alishan</b></span>। তৈরি করেছে <span style="color:#8335f1"><b>RAMS Tech</b></span>
       </p>
     </div>
   </footer>
@@ -1238,25 +1301,38 @@
       let v = true;
       if (!selectedFrameId) { document.getElementById('frameError').classList.add('visible'); document.getElementById('frameGrid').scrollIntoView({ behavior: 'smooth', block: 'start' }); v = false; }
       const n = document.getElementById('fullName').value.trim();
-      if (!n) v = setError('fullName', 'nameError', 'Full name is required.') && v;
-      else if (n.length < 2) v = setError('fullName', 'nameError', 'Name too short.') && v;
+      if (!n) v = setError('fullName', 'nameError', 'পুরো নাম প্রয়োজন।') && v;
+      else if (n.length < 2) v = setError('fullName', 'nameError', 'নাম অনেক ছোট।') && v;
       else setError('fullName', 'nameError', '');
       const p = document.getElementById('phone').value.trim();
-      if (!p) v = setError('phone', 'phoneError', 'Phone number is required.') && v;
-      else if (!/^\d{7,15}$/.test(p)) v = setError('phone', 'phoneError', 'Digits only, 7–15 numbers.') && v;
+      if (!p) v = setError('phone', 'phoneError', 'ফোন নম্বর প্রয়োজন।') && v;
+      else if (!/^\d{7,15}$/.test(p)) v = setError('phone', 'phoneError', 'শুধু সংখ্যা দিন, ৭–১৫ ডিজিট।') && v;
       else setError('phone', 'phoneError', '');
       const fb = document.getElementById('fbPage').value.trim();
-      if (!fb) v = setError('fbPage', 'fbPageError', 'Please enter the Facebook page name.') && v;
-      else if (fb.length < 2) v = setError('fbPage', 'fbPageError', 'Page name too short.') && v;
+      if (!fb) v = setError('fbPage', 'fbPageError', 'ফেসবুক পেজের নাম দিন।') && v;
+      else if (fb.length < 2) v = setError('fbPage', 'fbPageError', 'পেজের নাম অনেক ছোট।') && v;
       else setError('fbPage', 'fbPageError', '');
+      const genderVal = document.querySelector('input[name="gender"]:checked');
+      if (!genderVal) {
+        document.getElementById('genderError').textContent = 'লিঙ্গ বেছে নিন।';
+        document.querySelectorAll('input[name="gender"]').forEach(r => r.classList.add('invalid'));
+        v = false;
+      } else {
+        document.getElementById('genderError').textContent = '';
+        document.querySelectorAll('input[name="gender"]').forEach(r => r.classList.remove('invalid'));
+      }
+      const sn = document.getElementById('specialName').value.trim();
+      if (!sn) v = setError('specialName', 'specialNameError', 'ফ্রেমে প্রদর্শিত নাম দিন।') && v;
+      else if (sn.length < 2) v = setError('specialName', 'specialNameError', 'নাম অনেক ছোট।') && v;
+      else setError('specialName', 'specialNameError', '');
       const de = document.getElementById('specialDate');
-      if (!de.value) { de.classList.add('invalid'); document.getElementById('dateError').textContent = 'Please pick a date.'; v = false; }
+      if (!de.value) { de.classList.add('invalid'); document.getElementById('dateError').textContent = 'তারিখ বেছে নিন।'; v = false; }
       else { de.classList.remove('invalid'); document.getElementById('dateError').textContent = ''; }
       const m = document.getElementById('message').value.trim();
-      if (!m) v = setError('message', 'messageError', 'Please write a message.') && v;
-      else if (m.length < 5) v = setError('message', 'messageError', 'Message too short.') && v;
+      if (!m) v = setError('message', 'messageError', 'বার্তা লিখুন।') && v;
+      else if (m.length < 5) v = setError('message', 'messageError', 'বার্তা অনেক ছোট।') && v;
       else setError('message', 'messageError', '');
-      if (!selectedFiles.length) { document.getElementById('photosError').textContent = 'Please upload at least one photo.'; v = false; }
+      if (!selectedFiles.length) { document.getElementById('photosError').textContent = 'কমপক্ষে একটি ছবি আপলোড করুন।'; v = false; }
       else document.getElementById('photosError').textContent = '';
       return v;
     }
@@ -1268,6 +1344,16 @@
         }
       });
     });
+    document.getElementById('specialName').addEventListener('input', () => {
+      if (document.getElementById('specialName').value.trim()) {
+        document.getElementById('specialName').classList.remove('invalid');
+        document.getElementById('specialNameError').textContent = '';
+      }
+    });
+    document.querySelectorAll('input[name="gender"]').forEach(r => r.addEventListener('change', () => {
+      document.getElementById('genderError').textContent = '';
+      document.querySelectorAll('input[name="gender"]').forEach(x => x.classList.remove('invalid'));
+    }));
     document.getElementById('specialDate').addEventListener('change', () => {
       document.getElementById('specialDate').classList.remove('invalid');
       document.getElementById('dateError').textContent = '';
@@ -1277,7 +1363,7 @@
       e.preventDefault();
       if (!validate()) return;
       const btn = document.getElementById('submitBtn'), txt = btn.querySelector('.btn__text'), ldr = btn.querySelector('.btn__loader');
-      btn.disabled = true; txt.textContent = 'Submitting…'; ldr.hidden = false;
+      btn.disabled = true; txt.textContent = 'জমা হচ্ছে…'; ldr.hidden = false;
 
       try {
         // Build FormData — photos sent as real files (multipart/form-data)
@@ -1289,6 +1375,8 @@
         fd.append('phone', document.getElementById('phone').value.trim());
         fd.append('specialDate', document.getElementById('specialDate').value);
         fd.append('fbPage', document.getElementById('fbPage').value.trim());
+        fd.append('gender', document.querySelector('input[name="gender"]:checked').value);
+        fd.append('specialName', document.getElementById('specialName').value.trim());
         fd.append('message', document.getElementById('message').value.trim());
         selectedFiles.forEach(f => fd.append('photos', f));
 
@@ -1296,22 +1384,22 @@
         const data = await res.json();
 
         if (!res.ok || !data.success) {
-          throw new Error(data.message || 'Something went wrong. Please try again.');
+          throw new Error(data.message || 'কিছু একটা ভুল হয়েছে। আবার চেষ্টা করুন।');
         }
 
         showToast(document.getElementById('fullName').value.trim(), selectedFrameName);
         resetForm();
       } catch (err) {
-        showErrorToast(err.message || 'Network error. Please check your connection.');
+        showErrorToast(err.message || 'নেটওয়ার্ক সমস্যা। আপনার ইন্টারনেট সংযোগ পরীক্ষা করুন।');
       } finally {
-        btn.disabled = false; txt.textContent = '✦ Place My Order'; ldr.hidden = true;
+        btn.disabled = false; txt.textContent = '✦ অর্ডার দিন'; ldr.hidden = true;
       }
     });
 
     function showToast(name, frame) {
       const ex = document.getElementById('toast'); if (ex) ex.remove();
       const t = document.createElement('div'); t.id = 'toast';
-      t.innerHTML = '<span class="t-icon">◈</span><div><strong>Order Received!</strong><p>Thank you, <em>' + (name || 'friend') + '</em>! Your <em>' + (frame || 'frame') + '</em> order is placed. We\'ll call you shortly.</p></div>';
+      t.innerHTML = '<span class="t-icon">◈</span><div><strong>অর্ডার পাওয়া গেছে!</strong><p>ধন্যবাদ, <em>' + (name || 'বন্ধু') + '</em>! আপনার <em>' + (frame || 'ফ্রেম') + '</em> অর্ডার সম্পন্ন হয়েছে। শীঘ্রই কল করবো।</p></div>';
       document.body.appendChild(t);
       requestAnimationFrame(() => requestAnimationFrame(() => { t.style.opacity = '1'; t.style.transform = 'translateX(-50%) translateY(0)'; }));
       setTimeout(() => { t.style.opacity = '0'; t.style.transform = 'translateX(-50%) translateY(12px)'; setTimeout(() => t.remove(), 400); }, 6000);
@@ -1321,7 +1409,7 @@
       const ex = document.getElementById('toast'); if (ex) ex.remove();
       const t = document.createElement('div'); t.id = 'toast';
       t.style.borderLeftColor = '#c97a7a';
-      t.innerHTML = '<span class="t-icon" style="color:#c97a7a">⚠</span><div><strong>Order Failed</strong><p>' + msg + '</p></div>';
+      t.innerHTML = '<span class="t-icon" style="color:#c97a7a">⚠</span><div><strong>অর্ডার ব্যর্থ হয়েছে</strong><p>' + msg + '</p></div>';
       document.body.appendChild(t);
       requestAnimationFrame(() => requestAnimationFrame(() => { t.style.opacity = '1'; t.style.transform = 'translateX(-50%) translateY(0)'; }));
       setTimeout(() => { t.style.opacity = '0'; t.style.transform = 'translateX(-50%) translateY(12px)'; setTimeout(() => t.remove(), 400); }, 6000);
@@ -1330,8 +1418,9 @@
     function resetForm() {
       document.getElementById('orderForm').reset();
       selectedFiles = []; document.getElementById('filePreview').innerHTML = '';
-      ['fullName', 'phone', 'fbPage', 'specialDate', 'message'].forEach(id => { const el = document.getElementById(id); if (el) el.classList.remove('invalid'); });
-      ['nameError', 'phoneError', 'fbPageError', 'dateError', 'messageError', 'photosError'].forEach(id => { const el = document.getElementById(id); if (el) el.textContent = ''; });
+      ['fullName', 'phone', 'fbPage', 'specialDate', 'message', 'specialName'].forEach(id => { const el = document.getElementById(id); if (el) el.classList.remove('invalid'); });
+      ['nameError', 'phoneError', 'fbPageError', 'dateError', 'messageError', 'photosError', 'genderError', 'specialNameError'].forEach(id => { const el = document.getElementById(id); if (el) el.textContent = ''; });
+      document.querySelectorAll('input[name="gender"]').forEach(r => r.classList.remove('invalid'));
       clearFrame();
     }
   </script>

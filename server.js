@@ -85,6 +85,21 @@ mongoose.connect(process.env.MONGO_URI)
     if (backfilled.modifiedCount > 0) {
       console.log(`✅ Backfilled everDone=true on ${backfilled.modifiedCount} existing done order(s)`);
     }
+
+    // ── Seed gender counters ─────────────────────────────────────────────────
+    // On first run, count existing orders by gender so history is preserved.
+    const maleDoc = await GenderCounter.findById("male");
+    const femaleDoc = await GenderCounter.findById("female");
+    if (!maleDoc) {
+      const maleCount = await Order.countDocuments({ gender: "male" });
+      await GenderCounter.create({ _id: "male", count: maleCount });
+      console.log(`✅ Gender counter seeded: male=${maleCount}`);
+    }
+    if (!femaleDoc) {
+      const femaleCount = await Order.countDocuments({ gender: "female" });
+      await GenderCounter.create({ _id: "female", count: femaleCount });
+      console.log(`✅ Gender counter seeded: female=${femaleCount}`);
+    }
   })
   .catch((err) => console.log("❌ MongoDB Error:", err));
 
@@ -101,6 +116,8 @@ const orderSchema = new mongoose.Schema(
     categoryPrice: { type: String, required: true },
     fullName:      { type: String, required: true, trim: true },
     phone:         { type: String, required: true, trim: true },
+    gender:        { type: String, enum: ["male", "female"], required: true },
+    specialName:   { type: String, required: true, trim: true },
     specialDate:   { type: String, required: true },
     fbPage:        { type: String, required: true, trim: true },
     message:       { type: String, required: true, trim: true },
@@ -146,12 +163,24 @@ const pageCounterSchema = new mongoose.Schema({
 });
 const PageCounter = mongoose.model("PageCounter", pageCounterSchema, "page_counters");
 
+// ── Permanent gender counter ─────────────────────────────────────────────────
+// Two documents: { _id: "male", count: N } and { _id: "female", count: N }
+// Counts total orders (not just done) by gender — permanent, never decremented.
+const genderCounterSchema = new mongoose.Schema({
+  _id:   { type: String, required: true },
+  count: { type: Number, default: 0 },
+});
+const GenderCounter = mongoose.model("GenderCounter", genderCounterSchema, "gender_counters");
+
 app.post("/api/orders", upload.array("photos", 20), async (req, res) => {
   try {
-    const { categoryId, categoryName, categoryPrice, fullName, phone, fbPage, specialDate, message } = req.body;
+    const { categoryId, categoryName, categoryPrice, fullName, phone, gender, specialName, fbPage, specialDate, message } = req.body;
 
-    if (!categoryId || !fullName || !phone || !fbPage || !specialDate || !message) {
+    if (!categoryId || !fullName || !phone || !fbPage || !specialDate || !message || !gender || !specialName) {
       return res.status(400).json({ success: false, message: "All fields are required." });
+    }
+    if (!["male", "female"].includes(gender)) {
+      return res.status(400).json({ success: false, message: "Invalid gender value." });
     }
     if (!/^\d{7,15}$/.test(phone)) {
       return res.status(400).json({ success: false, message: "Invalid phone number." });
@@ -163,15 +192,22 @@ app.post("/api/orders", upload.array("photos", 20), async (req, res) => {
     const photos = req.files.map((f) => ({
       filename:     f.filename,
       originalName: f.originalname,
-      url:          `${BASE_URL}/uploads/${f.filename}`, // ✅ absolute URL — works on Render
+      url:          `${BASE_URL}/uploads/${f.filename}`,
     }));
 
     const order = new Order({
       categoryId, categoryName, categoryPrice,
-      fullName, phone, fbPage, specialDate, message, photos,
+      fullName, phone, gender, specialName, fbPage, specialDate, message, photos,
     });
 
     await order.save();
+
+    // Increment permanent gender counter
+    await GenderCounter.findByIdAndUpdate(
+      gender,
+      { $inc: { count: 1 } },
+      { upsert: true, new: true }
+    );
 
     res.status(201).json({
       success: true,
@@ -236,6 +272,22 @@ app.get("/api/stats/pages", async (req, res) => {
     const pages = await PageCounter.find().sort({ count: -1 }).lean();
     // Reshape to match the same { _id, count } format the frontend expects
     res.json({ success: true, pages });
+  } catch (err) {
+    res.status(500).json({ success: false, message: "Server error." });
+  }
+});
+
+app.get("/api/stats/gender", async (req, res) => {
+  try {
+    const [maleDoc, femaleDoc] = await Promise.all([
+      GenderCounter.findById("male"),
+      GenderCounter.findById("female"),
+    ]);
+    res.json({
+      success: true,
+      male:   maleDoc   ? maleDoc.count   : 0,
+      female: femaleDoc ? femaleDoc.count : 0,
+    });
   } catch (err) {
     res.status(500).json({ success: false, message: "Server error." });
   }
@@ -325,26 +377,56 @@ app.get("/api/orders/export/csv", async (req, res) => {
   try {
     const orders = await Order.find().sort({ createdAt: -1 }).lean();
 
-    const rows = orders.map((o) => ({
-      "Order ID":     o._id.toString(),
-      "Submitted At": o.createdAt ? new Date(o.createdAt).toLocaleString() : "",
-      "Status":       o.status,
-      "Frame":        o.categoryName,
-      "Price":        o.categoryPrice,
-      "Full Name":    o.fullName,
-      "Phone":        o.phone,
-      "Special Date": o.specialDate,
-      "Message":      o.message,
-      "Photo Count":  o.photos.length,
-      "Photo URLs": o.photos.map((p) => `${BASE_URL}${p.url}`).join(" | "),
-    }));
+    const rows = orders.map((o) => {
+      // Extract numeric price value for total sales calculation
+      const priceNum = parseFloat(String(o.categoryPrice || "").replace(/[^\d.]/g, "")) || 0;
+      return {
+        "Order ID":      o._id.toString(),
+        "Submitted At":  o.createdAt ? new Date(o.createdAt).toLocaleString() : "",
+        "Status":        o.status,
+        "Frame":         o.categoryName,
+        "Price":         o.categoryPrice,
+        "Price (Numeric)": priceNum,
+        "Full Name":     o.fullName,
+        "Gender":        o.gender === "male" ? "Male (পুরুষ)" : o.gender === "female" ? "Female (মহিলা)" : (o.gender || "—"),
+        "Frame Display Name": o.specialName || "—",
+        "Phone":         o.phone,
+        "Facebook Page": o.fbPage || "—",
+        "Special Date":  o.specialDate,
+        "Message":       o.message,
+        "Photo Count":   o.photos.length,
+        "Photo URLs":    o.photos.map((p) => `${BASE_URL}${p.url}`).join(" | "),
+      };
+    });
+
+    // Append a totals summary row
+    const totalSales = rows.reduce((sum, r) => sum + (r["Price (Numeric)"] || 0), 0);
+    const maleCount   = rows.filter(r => r["Gender"].startsWith("Male")).length;
+    const femaleCount = rows.filter(r => r["Gender"].startsWith("Female")).length;
+    rows.push({
+      "Order ID":      "— SUMMARY —",
+      "Submitted At":  `Total Orders: ${orders.length}`,
+      "Status":        "",
+      "Frame":         `Total Sales: ৳ ${totalSales.toLocaleString()}`,
+      "Price":         "",
+      "Price (Numeric)": totalSales,
+      "Full Name":     "",
+      "Gender":        `Male: ${maleCount} | Female: ${femaleCount}`,
+      "Frame Display Name": "",
+      "Phone":         "",
+      "Facebook Page": "",
+      "Special Date":  "",
+      "Message":       "",
+      "Photo Count":   "",
+      "Photo URLs":    "",
+    });
 
     const parser = new Parser({ fields: Object.keys(rows[0] || {}) });
     const csv    = parser.parse(rows);
     const date   = new Date().toISOString().slice(0, 10);
 
     res.setHeader("Content-Type", "text/csv");
-    res.setHeader("Content-Disposition", `attachment; filename="memory-frames-orders-${date}.csv"`);
+    res.setHeader("Content-Disposition", `attachment; filename="alishan-moments-orders-${date}.csv"`);
     res.send(csv);
   } catch (err) {
     res.status(500).json({ success: false, message: "Export failed." });
@@ -391,7 +473,7 @@ app.get("/api/orders/export/zip/:id", async (req, res) => {
     const submittedAt = o.createdAt ? new Date(o.createdAt).toLocaleString("en-GB", { day:"2-digit", month:"short", year:"numeric", hour:"2-digit", minute:"2-digit" }) : "—";
     const specialDate = o.specialDate ? new Date(o.specialDate + "T00:00:00").toLocaleDateString("en-GB", { day:"2-digit", month:"long", year:"numeric" }) : "—";
 
-    // ✅ Generate PDF using pdfkit — pure Node.js, no system dependencies
+    // Generate PDF
     const pdfBuffer = await new Promise((resolve, reject) => {
       const doc = new PDFDocument({ size: "A4", margin: 50 });
       const chunks = [];
@@ -404,9 +486,8 @@ app.get("/api/orders/export/zip/:id", async (req, res) => {
       const MUTED  = "#888880";
       const WHITE  = "#ffffff";
       const CREAM  = "#f5f0e8";
-      const W      = doc.page.width - 100; // usable width (margins 50 each side)
+      const W      = doc.page.width - 100; 
 
-      // ── HEADER BAR ──
       doc.rect(50, 50, W, 70).fill(INK);
       doc.fontSize(18).fillColor(GOLD).font("Helvetica-Bold")
          .text("Memory Frames", 65, 65);
@@ -420,7 +501,6 @@ app.get("/api/orders/export/zip/:id", async (req, res) => {
 
       let y = 140;
 
-      // helper: draw a section card
       function sectionTitle(title) {
         doc.rect(50, y, W, 24).fill(CREAM);
         doc.fontSize(10).fillColor(INK).font("Helvetica-Bold")
@@ -438,21 +518,18 @@ app.get("/api/orders/export/zip/:id", async (req, res) => {
         doc.moveTo(50, y - 1).lineTo(50 + W, y - 1).strokeColor("#e8e0d0").lineWidth(0.5).stroke();
       }
 
-      // ── CUSTOMER INFO ──
       sectionTitle("Customer Information");
       field("Full Name",     o.fullName);
       field("Phone",         o.phone);
       field("Facebook Page", o.fbPage || "—");
       y += 10;
 
-      // ── FRAME DETAILS ──
       sectionTitle("Frame Details");
       field("Frame Type",   o.categoryName);
       field("Price",        "Tk. " + String(o.categoryPrice || "").replace(/[^\x00-\x7F0-9.,\s]/g, "").trim());
       field("Special Date", specialDate);
       y += 10;
 
-      // ── MESSAGE ──
       sectionTitle("Personal Message");
       if (y > 700) { doc.addPage(); y = 50; }
       doc.rect(50, y, W, 1).fill(CREAM);
@@ -460,7 +537,6 @@ app.get("/api/orders/export/zip/:id", async (req, res) => {
          .text(o.message || "—", 60, y + 8, { width: W - 20, lineGap: 4 });
       y += doc.heightOfString(o.message || "—", { width: W - 20 }) + 24;
 
-      // ── PHOTOS LIST ──
       if (o.photos && o.photos.length) {
         y += 5;
         sectionTitle(`Uploaded Photos (${o.photos.length})`);
@@ -474,7 +550,6 @@ app.get("/api/orders/export/zip/:id", async (req, res) => {
         });
       }
 
-      // ── FOOTER ──
       const footerY = doc.page.height - 40;
       doc.fontSize(7).fillColor(MUTED).font("Helvetica")
          .text(
@@ -512,13 +587,12 @@ app.get("/api/orders/export/zip/:id", async (req, res) => {
   }
 });
 
-// ✅ Only serve index.html for non-API routes (prevents wildcard swallowing API calls)
 app.get(/^(?!\/api).*$/, (req, res) => {
   res.sendFile(path.join(__dirname, "public", "index.html"));
 });
 
 app.listen(PORT, () => {
-  console.log(`🚀  Memory Frames server running → http://localhost:${PORT}`);
+  console.log(`🚀  Alishan Moments server running → http://localhost:${PORT}`);
   console.log(`    Customer form : http://localhost:${PORT}/index.html`);
   console.log(`    Admin panel   : http://localhost:${PORT}/admin.html`);
 });
