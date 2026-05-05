@@ -639,21 +639,28 @@ app.get("/api/orders/export/zip/:id", async (req, res) => {
 });
 
 // ── Sales Ledger PDF export (password-protected) ─────────────────────────────
-// POST body: { password: "..." }
-// Returns a professionally formatted PDF of the entire sales_records collection.
-// Never exposed in the admin UI table — only reachable via this endpoint.
 app.post("/api/orders/export/sales-pdf", async (req, res) => {
   try {
     const { password } = req.body;
     const SALES_PASSWORD = process.env.SALES_PDF_PASSWORD || "alishan@sales2026";
-
     if (!password || password !== SALES_PASSWORD) {
       return res.status(401).json({ success: false, message: "Invalid password." });
     }
 
     const records = await SalesRecord.find().sort({ submittedAt: 1 }).lean();
-    const grandTotal = records.length > 0 ? records[records.length - 1].totalSales : 0;
-    const date = new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "long", year: "numeric" });
+    const date    = new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "long", year: "numeric" });
+
+    // ── Group records by Facebook page ────────────────────────────────────────
+    const pageMap = new Map(); // pageName → [records]
+    records.forEach(r => {
+      const page = (r.fbPage || "Unknown Page").trim();
+      if (!pageMap.has(page)) pageMap.set(page, []);
+      pageMap.get(page).push(r);
+    });
+    const pages = [...pageMap.entries()]; // [ [pageName, [records]], ... ]
+
+    // Grand total across all pages
+    const grandTotal = records.reduce((s, r) => s + (r.framePriceNum || 0), 0);
 
     const pdfBuffer = await new Promise((resolve, reject) => {
       const doc    = new PDFDocument({ size: "A4", margin: 0, autoFirstPage: true });
@@ -662,185 +669,261 @@ app.post("/api/orders/export/sales-pdf", async (req, res) => {
       doc.on("end",   () => resolve(Buffer.concat(chunks)));
       doc.on("error", reject);
 
-      // ── Design tokens ──────────────────────────────────────────────────────
+      // ── Palette & layout constants ────────────────────────────────────────
       const INK     = "#0d0b09";
       const GOLD    = "#b8873a";
       const GOLD_LT = "#d4a85a";
       const CREAM   = "#f5f0e8";
       const MUTED   = "#7a7570";
       const WHITE   = "#ffffff";
-      const ROW_A   = "#faf7f2";   // odd rows
-      const ROW_B   = WHITE;        // even rows
-      const BORDER  = "#e8e0d0";
-      const RED     = "#c0392b";
-      const GREEN   = "#2e7d52";
+      const ROW_A   = "#faf7f2";
+      const BORDER  = "#e0d8cc";
 
-      const PAGE_W  = doc.page.width;
-      const PAGE_H  = doc.page.height;
-      const ML      = 36;           // margin left
-      const MR      = 36;           // margin right
-      const CW      = PAGE_W - ML - MR;  // content width
+      const PAGE_W  = doc.page.width;   // 595.28
+      const PAGE_H  = doc.page.height;  // 841.89
+      const ML      = 40;
+      const CW      = PAGE_W - ML * 2;
+      const FOOTER_H = 34;
+      const SAFE_H  = PAGE_H - FOOTER_H - 10; // lowest y before footer zone
 
-      // ── Helper: draw decorative gold rule ─────────────────────────────────
-      function goldRule(y, thick = 1.5) {
-        doc.save()
-           .moveTo(ML, y).lineTo(ML + CW, y)
-           .lineWidth(thick).strokeColor(GOLD).stroke()
-           .restore();
+      // ── Column layout (4 data columns) ───────────────────────────────────
+      //  #  | Customer Name  | Phone  | Frame / Order Type  | Amount (Tk.)
+      const COL = [
+        { h: "#",                w: 28,  al: "center" },
+        { h: "Customer Name",    w: 160, al: "left"   },
+        { h: "Phone",            w: 90,  al: "left"   },
+        { h: "Order Type",       w: 180, al: "left"   },
+        { h: "Amount (Tk.)",     w: 65,  al: "right"  },
+      ];
+      // Pre-compute x positions
+      let _cx = ML;
+      COL.forEach(c => { c.x = _cx; _cx += c.w; });
+
+      const ROW_H    = 19;
+      const HEAD_H   = 17;
+      const SUB_H    = 19;
+
+      // ── Helpers ──────────────────────────────────────────────────────────
+      let y = 0;
+      let pageNum = 0;
+
+      function newPage() {
+        if (pageNum > 0) doc.addPage({ size: "A4", margin: 0 });
+        pageNum++;
+        y = 0;
+        drawPageHeader();
       }
 
-      // ── COVER / HEADER block ──────────────────────────────────────────────
-      // Dark background header strip
-      doc.rect(0, 0, PAGE_W, 110).fill(INK);
+      function drawPageHeader() {
+        // Dark bar at top
+        doc.rect(0, 0, PAGE_W, 72).fill(INK);
+        doc.font("Helvetica-Bold").fontSize(18).fillColor(GOLD)
+           .text("Alishan Moments", ML, 18, { width: CW * 0.55 });
+        doc.font("Helvetica").fontSize(7.5).fillColor("#aaa9a6")
+           .text("Confidential Sales Ledger  ·  Internal Use Only", ML, 42, { width: CW * 0.55 });
+        doc.font("Helvetica").fontSize(7).fillColor("#aaa9a6")
+           .text(`Generated: ${date}`, ML, 18, { width: CW, align: "right" });
+        doc.font("Helvetica-Bold").fontSize(8).fillColor(GOLD_LT)
+           .text(
+             `${records.length} order${records.length !== 1 ? "s" : ""}   ·   Grand Total: Tk. ${grandTotal.toLocaleString("en-IN")}`,
+             ML, 32, { width: CW, align: "right" }
+           );
+        // Gold underline
+        doc.moveTo(0, 72).lineTo(PAGE_W, 72).lineWidth(2).strokeColor(GOLD).stroke();
+        y = 84;
+      }
 
-      // Brand name
-      doc.font("Helvetica-Bold").fontSize(22).fillColor(GOLD)
-         .text("Alishan Moments", ML, 28, { width: CW * 0.6 });
+      function drawFooter() {
+        const fy = PAGE_H - FOOTER_H;
+        doc.moveTo(ML, fy).lineTo(ML + CW, fy).lineWidth(0.5).strokeColor(GOLD).stroke();
+        doc.font("Helvetica").fontSize(6.5).fillColor(MUTED)
+           .text("Alishan Moments  ·  Confidential — Authorized Personnel Only", ML, fy + 7, { width: CW * 0.6 });
+        doc.font("Helvetica").fontSize(6.5).fillColor(MUTED)
+           .text(`Page ${pageNum}  ·  ${date}`, ML, fy + 7, { width: CW, align: "right" });
+      }
 
-      // Sub-label
-      doc.font("Helvetica").fontSize(8).fillColor("#aaa9a6")
-         .text("Confidential Sales Ledger  ·  Internal Use Only", ML, 56, { width: CW * 0.6 });
+      function goldRule(yy, thick = 0.8) {
+        doc.moveTo(ML, yy).lineTo(ML + CW, yy).lineWidth(thick).strokeColor(GOLD).stroke();
+      }
 
-      // Generated date (top-right)
-      doc.font("Helvetica").fontSize(7.5).fillColor("#aaa9a6")
-         .text(`Generated: ${date}`, ML, 28, { width: CW, align: "right" });
+      function ensureSpace(needed) {
+        if (y + needed > SAFE_H) {
+          drawFooter();
+          newPage();
+        }
+      }
 
-      // Total records count (top-right)
-      doc.font("Helvetica-Bold").fontSize(9).fillColor(GOLD_LT)
-         .text(`${records.length} order${records.length !== 1 ? "s" : ""}  ·  Grand Total: Tk. ${grandTotal.toLocaleString("en-IN")}`,
-               ML, 44, { width: CW, align: "right" });
+      function drawTableHeader() {
+        doc.rect(ML, y, CW, HEAD_H).fill(INK);
+        COL.forEach(c => {
+          doc.font("Helvetica-Bold").fontSize(7).fillColor(GOLD_LT)
+             .text(c.h, c.x + 4, y + 4, { width: c.w - 8, align: c.al });
+        });
+        y += HEAD_H;
+      }
 
-      // Bottom gold line of header
-      goldRule(110, 2);
+      function drawRow(idx, name, phone, orderType, amount) {
+        const bg = idx % 2 === 0 ? ROW_A : WHITE;
+        doc.rect(ML, y, CW, ROW_H).fill(bg);
+        const cells = [
+          { v: String(idx + 1), ...COL[0] },
+          { v: name,             ...COL[1] },
+          { v: phone,            ...COL[2] },
+          { v: orderType,        ...COL[3] },
+          { v: amount > 0 ? amount.toLocaleString("en-IN") : "—", ...COL[4] },
+        ];
+        cells.forEach(cell => {
+          const isAmt = cell.h === "Amount (Tk.)";
+          doc.font(isAmt ? "Helvetica-Bold" : "Helvetica")
+             .fontSize(7.5)
+             .fillColor(isAmt ? GOLD : INK)
+             .text(cell.v, cell.x + 4, y + 5, { width: cell.w - 8, align: cell.al, lineBreak: false });
+        });
+        doc.moveTo(ML, y + ROW_H).lineTo(ML + CW, y + ROW_H)
+           .lineWidth(0.25).strokeColor(BORDER).stroke();
+        y += ROW_H;
+      }
 
-      let y = 126;
+      function drawSubtotal(pageName, subtotal, count) {
+        ensureSpace(SUB_H + 6);
+        doc.rect(ML, y, CW, SUB_H).fill(CREAM);
+        doc.font("Helvetica-Bold").fontSize(7.5).fillColor(MUTED)
+           .text(`Subtotal — ${pageName}  (${count} order${count !== 1 ? "s" : ""})`,
+                 ML + 4, y + 5, { width: CW * 0.7 });
+        doc.font("Helvetica-Bold").fontSize(9).fillColor(GOLD)
+           .text(`Tk. ${subtotal.toLocaleString("en-IN")}`, ML + 4, y + 4, { width: CW - 8, align: "right" });
+        goldRule(y + SUB_H, 0.5);
+        y += SUB_H + 6;
+      }
 
-      // ── Summary stats bar ─────────────────────────────────────────────────
+      // ── START RENDERING ───────────────────────────────────────────────────
+      newPage();
+
+      // Summary stat strip just below the header
+      const statBoxW = CW / 3;
       const maleCount   = records.filter(r => r.gender === "male").length;
       const femaleCount = records.filter(r => r.gender === "female").length;
-      const uniquePages = [...new Set(records.map(r => r.fbPage))].length;
-
-      const statBoxW = CW / 4;
-      const stats = [
-        { label: "Total Orders",    value: records.length.toString() },
-        { label: "Male Customers",  value: maleCount.toString() },
-        { label: "Female Customers",value: femaleCount.toString() },
-        { label: "Pages",           value: uniquePages.toString() },
+      const statItems = [
+        { label: "Total Orders",     value: String(records.length) },
+        { label: "Male / Female",    value: `${maleCount} / ${femaleCount}` },
+        { label: "Facebook Pages",   value: String(pages.length) },
       ];
-      doc.rect(ML, y, CW, 44).fill(CREAM);
-      stats.forEach((s, i) => {
+      doc.rect(ML, y, CW, 38).fill(CREAM);
+      statItems.forEach((s, i) => {
         const bx = ML + i * statBoxW;
-        if (i > 0) {
-          doc.moveTo(bx, y + 8).lineTo(bx, y + 36)
-             .lineWidth(0.5).strokeColor(BORDER).stroke();
-        }
-        doc.font("Helvetica").fontSize(7).fillColor(MUTED)
-           .text(s.label.toUpperCase(), bx + 8, y + 9, { width: statBoxW - 12 });
-        doc.font("Helvetica-Bold").fontSize(14).fillColor(INK)
-           .text(s.value, bx + 8, y + 19, { width: statBoxW - 12 });
+        if (i > 0) doc.moveTo(bx, y + 6).lineTo(bx, y + 32).lineWidth(0.4).strokeColor(BORDER).stroke();
+        doc.font("Helvetica").fontSize(6.5).fillColor(MUTED)
+           .text(s.label.toUpperCase(), bx + 8, y + 7, { width: statBoxW - 14 });
+        doc.font("Helvetica-Bold").fontSize(13).fillColor(INK)
+           .text(s.value, bx + 8, y + 17, { width: statBoxW - 14 });
       });
-      y += 44;
-      goldRule(y, 0.5);
-      y += 14;
+      goldRule(y + 38, 0.5);
+      y += 46;
 
-      // ── Table header row ──────────────────────────────────────────────────
-      // Column definitions: [label, x-offset from ML, width, align]
-      const cols = [
-        { h: "#",            w: 22,  al: "center" },
-        { h: "Date",         w: 58,  al: "left"   },
-        { h: "Customer",     w: 80,  al: "left"   },
-        { h: "Phone",        w: 70,  al: "left"   },
-        { h: "Gender",       w: 42,  al: "center" },
-        { h: "Frame Name",   w: 72,  al: "left"   },
-        { h: "Frame",        w: 80,  al: "left"   },
-        { h: "Price (Tk.)",  w: 50,  al: "right"  },
-        { h: "Running Total",w: 64,  al: "right"  },
-      ];
-      // Compute x positions
-      let cx = ML;
-      cols.forEach(c => { c.x = cx; cx += c.w; });
+      // ── Per-page sections ─────────────────────────────────────────────────
+      pages.forEach(([pageName, recs], pageIdx) => {
+        const pageSubtotal = recs.reduce((s, r) => s + (r.framePriceNum || 0), 0);
 
-      // Header row background
-      doc.rect(ML, y, CW, 18).fill(INK);
-      cols.forEach(c => {
-        doc.font("Helvetica-Bold").fontSize(6.5).fillColor(GOLD_LT)
-           .text(c.h, c.x + 3, y + 5, { width: c.w - 6, align: c.al });
-      });
-      y += 18;
+        // Page section heading — needs heading + header + at least 1 row space
+        ensureSpace(26 + HEAD_H + ROW_H);
 
-      // ── Table rows ────────────────────────────────────────────────────────
-      const ROW_H = 20;
+        // Section title (page name as header)
+        doc.rect(ML, y, CW, 22).fill(INK);
+        // Left accent bar
+        doc.rect(ML, y, 4, 22).fill(GOLD);
+        doc.font("Helvetica-Bold").fontSize(9.5).fillColor(WHITE)
+           .text(pageName, ML + 12, y + 6, { width: CW * 0.65 });
+        doc.font("Helvetica").fontSize(7).fillColor(GOLD_LT)
+           .text(`${recs.length} order${recs.length !== 1 ? "s" : ""}`, ML + 4, y + 6, { width: CW - 8, align: "right" });
+        y += 22;
 
-      records.forEach((r, idx) => {
-        // Page break check — leave room for footer
-        if (y + ROW_H > PAGE_H - 60) {
-          // Footer on current page
-          drawPageFooter(doc, PAGE_W, PAGE_H, ML, CW, MUTED, GOLD, date);
-          doc.addPage({ size: "A4", margin: 0 });
-          y = 36;
-          // Repeat table header on new page
-          doc.rect(ML, y, CW, 18).fill(INK);
-          cols.forEach(c => {
-            doc.font("Helvetica-Bold").fontSize(6.5).fillColor(GOLD_LT)
-               .text(c.h, c.x + 3, y + 5, { width: c.w - 6, align: c.al });
-          });
-          y += 18;
-        }
+        // Column headers
+        drawTableHeader();
 
-        const bg = idx % 2 === 0 ? ROW_A : ROW_B;
-        doc.rect(ML, y, CW, ROW_H).fill(bg);
-
-        const fmtDate = r.submittedAt
-          ? new Date(r.submittedAt).toLocaleDateString("en-GB", { day:"2-digit", month:"short", year:"2-digit" })
-          : "—";
-
-        const rowData = [
-          { v: String(idx + 1),              ...cols[0] },
-          { v: fmtDate,                       ...cols[1] },
-          { v: r.fullName || "—",             ...cols[2] },
-          { v: r.phone    || "—",             ...cols[3] },
-          { v: r.gender === "male" ? "M" : r.gender === "female" ? "F" : "—", ...cols[4] },
-          { v: r.specialName || "—",          ...cols[5] },
-          { v: r.frameName   || "—",          ...cols[6] },
-          { v: r.framePriceNum > 0 ? r.framePriceNum.toLocaleString("en-IN") : "—", ...cols[7] },
-          { v: r.totalSales > 0    ? r.totalSales.toLocaleString("en-IN")    : "—", ...cols[8] },
-        ];
-
-        rowData.forEach(cell => {
-          // Running total column gets gold highlight
-          const isTotal   = cell.h === "Running Total";
-          const textColor = isTotal ? GOLD : INK;
-          const font      = isTotal ? "Helvetica-Bold" : "Helvetica";
-          doc.font(font).fontSize(7).fillColor(textColor)
-             .text(cell.v, cell.x + 3, y + 6, { width: cell.w - 6, align: cell.al, lineBreak: false });
+        // Data rows
+        recs.forEach((r, idx) => {
+          ensureSpace(ROW_H);
+          // If we had to break, re-draw the column header
+          const prevY = y;
+          if (y === 84) drawTableHeader(); // fresh page after ensureSpace
+          drawRow(
+            idx,
+            r.fullName    || "—",
+            r.phone       || "—",
+            r.frameName   || "—",
+            r.framePriceNum || 0
+          );
         });
 
-        // Subtle bottom border
-        doc.moveTo(ML, y + ROW_H).lineTo(ML + CW, y + ROW_H)
-           .lineWidth(0.3).strokeColor(BORDER).stroke();
+        // Subtotal row for this page
+        drawSubtotal(pageName, pageSubtotal, recs.length);
 
+        // Gap between page sections
+        y += 8;
+      });
+
+      // ── Grand Total table ─────────────────────────────────────────────────
+      ensureSpace(22 + HEAD_H + pages.length * ROW_H + 30);
+
+      // Section title
+      doc.rect(ML, y, CW, 22).fill(INK);
+      doc.rect(ML, y, 4, 22).fill(GOLD);
+      doc.font("Helvetica-Bold").fontSize(9.5).fillColor(GOLD)
+         .text("Summary — Total Sales by Page", ML + 12, y + 6, { width: CW });
+      y += 22;
+
+      // Summary table header
+      const SCOL = [
+        { h: "#",              w: 28,  al: "center", x: ML },
+        { h: "Facebook Page",  w: 290, al: "left",   x: ML + 28 },
+        { h: "Orders",         w: 60,  al: "center", x: ML + 318 },
+        { h: "Total (Tk.)",    w: 145, al: "right",  x: ML + 378 },
+      ];
+      doc.rect(ML, y, CW, HEAD_H).fill("#1a1612");
+      SCOL.forEach(c => {
+        doc.font("Helvetica-Bold").fontSize(7).fillColor(GOLD_LT)
+           .text(c.h, c.x + 4, y + 4, { width: c.w - 8, align: c.al });
+      });
+      y += HEAD_H;
+
+      let summaryRunning = 0;
+      pages.forEach(([pageName, recs], idx) => {
+        const sub = recs.reduce((s, r) => s + (r.framePriceNum || 0), 0);
+        summaryRunning += sub;
+        ensureSpace(ROW_H);
+        const bg = idx % 2 === 0 ? ROW_A : WHITE;
+        doc.rect(ML, y, CW, ROW_H).fill(bg);
+        const sCells = [
+          { v: String(idx + 1),                                     ...SCOL[0] },
+          { v: pageName,                                             ...SCOL[1] },
+          { v: String(recs.length),                                  ...SCOL[2] },
+          { v: sub > 0 ? sub.toLocaleString("en-IN") : "0",         ...SCOL[3] },
+        ];
+        sCells.forEach(cell => {
+          const isAmt = cell.h === "Total (Tk.)";
+          doc.font(isAmt ? "Helvetica-Bold" : "Helvetica")
+             .fontSize(7.5)
+             .fillColor(isAmt ? GOLD : INK)
+             .text(cell.v, cell.x + 4, y + 5, { width: cell.w - 8, align: cell.al, lineBreak: false });
+        });
+        doc.moveTo(ML, y + ROW_H).lineTo(ML + CW, y + ROW_H)
+           .lineWidth(0.25).strokeColor(BORDER).stroke();
         y += ROW_H;
       });
 
-      // ── Grand total summary row ───────────────────────────────────────────
-      if (y + 28 > PAGE_H - 60) {
-        drawPageFooter(doc, PAGE_W, PAGE_H, ML, CW, MUTED, GOLD, date);
-        doc.addPage({ size: "A4", margin: 0 });
-        y = 36;
-      }
-      goldRule(y, 1);
-      y += 4;
+      // Grand total row
+      ensureSpace(28);
+      goldRule(y, 1.5);
+      y += 3;
       doc.rect(ML, y, CW, 26).fill(INK);
       doc.font("Helvetica-Bold").fontSize(8.5).fillColor(GOLD_LT)
-         .text("GRAND TOTAL SALES", ML + 4, y + 8, { width: CW * 0.6 });
-      doc.font("Helvetica-Bold").fontSize(11).fillColor(GOLD)
-         .text(`Tk. ${grandTotal.toLocaleString("en-IN")}`, ML + 4, y + 6, { width: CW - 8, align: "right" });
+         .text("GRAND TOTAL — ALL PAGES", ML + 12, y + 8, { width: CW * 0.6 });
+      doc.font("Helvetica-Bold").fontSize(12).fillColor(GOLD)
+         .text(`Tk. ${grandTotal.toLocaleString("en-IN")}`, ML + 4, y + 7, { width: CW - 8, align: "right" });
       y += 26;
-      goldRule(y, 1);
+      goldRule(y, 1.5);
 
-      // ── Page footer ───────────────────────────────────────────────────────
-      drawPageFooter(doc, PAGE_W, PAGE_H, ML, CW, MUTED, GOLD, date);
-
+      drawFooter();
       doc.end();
     });
 
