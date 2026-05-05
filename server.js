@@ -642,25 +642,27 @@ app.get("/api/orders/export/zip/:id", async (req, res) => {
 app.post("/api/orders/export/sales-pdf", async (req, res) => {
   try {
     const { password } = req.body;
-    const SALES_PASSWORD = process.env.SALES_PDF_PASSWORD || "tmrekhanekikaj";
+    const SALES_PASSWORD = process.env.SALES_PDF_PASSWORD || "alishan@sales2026";
     if (!password || password !== SALES_PASSWORD) {
       return res.status(401).json({ success: false, message: "Invalid password." });
     }
 
     const records = await SalesRecord.find().sort({ submittedAt: 1 }).lean();
-    const date    = new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "long", year: "numeric" });
+    const now     = new Date();
+    const date    = now.toLocaleDateString("en-GB", { day: "2-digit", month: "long", year: "numeric" });
+    const time    = now.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
 
-    // ── Group records by Facebook page ────────────────────────────────────────
-    const pageMap = new Map(); // pageName → [records]
+    // Group by Facebook page
+    const pageMap = new Map();
     records.forEach(r => {
       const page = (r.fbPage || "Unknown Page").trim();
       if (!pageMap.has(page)) pageMap.set(page, []);
       pageMap.get(page).push(r);
     });
-    const pages = [...pageMap.entries()]; // [ [pageName, [records]], ... ]
-
-    // Grand total across all pages
+    const pages      = [...pageMap.entries()];
     const grandTotal = records.reduce((s, r) => s + (r.framePriceNum || 0), 0);
+    const maleCount  = records.filter(r => r.gender === "male").length;
+    const femaleCount= records.filter(r => r.gender === "female").length;
 
     const pdfBuffer = await new Promise((resolve, reject) => {
       const doc    = new PDFDocument({ size: "A4", margin: 0, autoFirstPage: true });
@@ -669,265 +671,278 @@ app.post("/api/orders/export/sales-pdf", async (req, res) => {
       doc.on("end",   () => resolve(Buffer.concat(chunks)));
       doc.on("error", reject);
 
-      // ── Palette & layout constants ────────────────────────────────────────
-      const INK     = "#0d0b09";
-      const GOLD    = "#b8873a";
-      const GOLD_LT = "#d4a85a";
-      const CREAM   = "#f5f0e8";
-      const MUTED   = "#7a7570";
-      const WHITE   = "#ffffff";
-      const ROW_A   = "#faf7f2";
-      const BORDER  = "#e0d8cc";
+      // ── Palette ───────────────────────────────────────────────────────────
+      const C = {
+        ink:      "#1c1a17",   // near-black text
+        gold:     "#9a6f2e",   // deep muted gold — sophisticated, not gaudy
+        goldPale: "#c49a4a",   // lighter gold for accents
+        dust:     "#6b6560",   // caption / muted text
+        rule:     "#d8d0c4",   // hairline rules
+        rowAlt:   "#f9f6f1",   // very subtle alternating row tint
+        white:    "#ffffff",
+        headerBg: "#1c1a17",   // cover strip only
+      };
 
+      // ── Layout ────────────────────────────────────────────────────────────
       const PAGE_W  = doc.page.width;   // 595.28
       const PAGE_H  = doc.page.height;  // 841.89
-      const ML      = 40;
-      const CW      = PAGE_W - ML * 2;
-      const FOOTER_H = 34;
-      const SAFE_H  = PAGE_H - FOOTER_H - 10; // lowest y before footer zone
+      const ML      = 48;               // left margin
+      const MR      = 48;               // right margin
+      const CW      = PAGE_W - ML - MR; // 499.28
+      const FOOTER_Y = PAGE_H - 44;
+      const SAFE_H   = FOOTER_Y - 8;
 
-      // ── Column layout (4 data columns) ───────────────────────────────────
-      //  #  | Customer Name  | Phone  | Frame / Order Type  | Amount (Tk.)
+      // ── Column definitions ────────────────────────────────────────────────
+      // Widths must sum to CW (499)
       const COL = [
-        { h: "#",                w: 28,  al: "center" },
-        { h: "Customer Name",    w: 160, al: "left"   },
-        { h: "Phone",            w: 90,  al: "left"   },
-        { h: "Order Type",       w: 180, al: "left"   },
-        { h: "Amount (Tk.)",     w: 65,  al: "right"  },
+        { h: "No.",           w: 24,  al: "center" },
+        { h: "Customer Name", w: 148, al: "left"   },
+        { h: "Phone",         w: 98,  al: "left"   },
+        { h: "Order Type",    w: 165, al: "left"   },
+        { h: "Tk.",           w: 64,  al: "right"  },
       ];
-      // Pre-compute x positions
       let _cx = ML;
       COL.forEach(c => { c.x = _cx; _cx += c.w; });
 
-      const ROW_H    = 19;
-      const HEAD_H   = 17;
-      const SUB_H    = 19;
+      const ROW_H  = 20;
+      const COLH_H = 16;  // column-header band height
 
-      // ── Helpers ──────────────────────────────────────────────────────────
-      let y = 0;
-      let pageNum = 0;
+      let y      = 0;
+      let pageNo = 0;
 
-      function newPage() {
-        if (pageNum > 0) doc.addPage({ size: "A4", margin: 0 });
-        pageNum++;
-        y = 0;
-        drawPageHeader();
+      // ── Utility: thin hairline across content width ───────────────────────
+      function rule(yy, color = C.rule, thick = 0.4) {
+        doc.moveTo(ML, yy).lineTo(ML + CW, yy)
+           .lineWidth(thick).strokeColor(color).stroke();
       }
 
-      function drawPageHeader() {
-        // Dark bar at top
-        doc.rect(0, 0, PAGE_W, 72).fill(INK);
-        doc.font("Helvetica-Bold").fontSize(18).fillColor(GOLD)
-           .text("Alishan Moments", ML, 18, { width: CW * 0.55 });
-        doc.font("Helvetica").fontSize(7.5).fillColor("#aaa9a6")
-           .text("Confidential Sales Ledger  ·  Internal Use Only", ML, 42, { width: CW * 0.55 });
-        doc.font("Helvetica").fontSize(7).fillColor("#aaa9a6")
-           .text(`Generated: ${date}`, ML, 18, { width: CW, align: "right" });
-        doc.font("Helvetica-Bold").fontSize(8).fillColor(GOLD_LT)
-           .text(
-             `${records.length} order${records.length !== 1 ? "s" : ""}   ·   Grand Total: Tk. ${grandTotal.toLocaleString("en-IN")}`,
-             ML, 32, { width: CW, align: "right" }
-           );
-        // Gold underline
-        doc.moveTo(0, 72).lineTo(PAGE_W, 72).lineWidth(2).strokeColor(GOLD).stroke();
-        y = 84;
+      // ── Full-bleed thin gold top-edge on every continued page ────────────
+      function continuedPageAccent() {
+        doc.moveTo(0, 0).lineTo(PAGE_W, 0).lineWidth(3).strokeColor(C.gold).stroke();
+        doc.moveTo(0, 3).lineTo(PAGE_W, 3).lineWidth(0.5).strokeColor(C.goldPale).stroke();
       }
 
+      // ── Footer ────────────────────────────────────────────────────────────
       function drawFooter() {
-        const fy = PAGE_H - FOOTER_H;
-        doc.moveTo(ML, fy).lineTo(ML + CW, fy).lineWidth(0.5).strokeColor(GOLD).stroke();
-        doc.font("Helvetica").fontSize(6.5).fillColor(MUTED)
-           .text("Alishan Moments  ·  Confidential — Authorized Personnel Only", ML, fy + 7, { width: CW * 0.6 });
-        doc.font("Helvetica").fontSize(6.5).fillColor(MUTED)
-           .text(`Page ${pageNum}  ·  ${date}`, ML, fy + 7, { width: CW, align: "right" });
+        rule(FOOTER_Y, C.rule, 0.5);
+        doc.font("Helvetica").fontSize(6.5).fillColor(C.dust)
+           .text("Alishan Moments  ·  Confidential — Authorised Personnel Only",
+                 ML, FOOTER_Y + 8, { width: CW * 0.6 });
+        doc.font("Helvetica").fontSize(6.5).fillColor(C.dust)
+           .text(`Page ${pageNo}  ·  ${date}`, ML, FOOTER_Y + 8, { width: CW, align: "right" });
       }
 
-      function goldRule(yy, thick = 0.8) {
-        doc.moveTo(ML, yy).lineTo(ML + CW, yy).lineWidth(thick).strokeColor(GOLD).stroke();
+      // ── New page ──────────────────────────────────────────────────────────
+      function newPage(isCover = false) {
+        if (pageNo > 0) doc.addPage({ size: "A4", margin: 0 });
+        pageNo++;
+        y = isCover ? 0 : 32;
+        if (!isCover) continuedPageAccent();
       }
 
-      function ensureSpace(needed) {
-        if (y + needed > SAFE_H) {
-          drawFooter();
-          newPage();
-        }
+      function ensureSpace(h) {
+        if (y + h > SAFE_H) { drawFooter(); newPage(); }
       }
 
-      function drawTableHeader() {
-        doc.rect(ML, y, CW, HEAD_H).fill(INK);
+      // ── Column-header band ────────────────────────────────────────────────
+      function drawColHeaders() {
+        // Light warm-grey band, no harsh dark fill
+        doc.rect(ML, y, CW, COLH_H).fill("#f0ebe3");
+        rule(y, C.rule, 0.5);
         COL.forEach(c => {
-          doc.font("Helvetica-Bold").fontSize(7).fillColor(GOLD_LT)
-             .text(c.h, c.x + 4, y + 4, { width: c.w - 8, align: c.al });
+          doc.font("Helvetica-Bold").fontSize(6.8).fillColor(C.dust)
+             .text(c.h.toUpperCase(), c.x + 4, y + 4, { width: c.w - 8, align: c.al, characterSpacing: 0.3 });
         });
-        y += HEAD_H;
+        rule(y + COLH_H, C.rule, 0.5);
+        y += COLH_H;
       }
 
+      // ── Data row ─────────────────────────────────────────────────────────
       function drawRow(idx, name, phone, orderType, amount) {
-        const bg = idx % 2 === 0 ? ROW_A : WHITE;
-        doc.rect(ML, y, CW, ROW_H).fill(bg);
+        if (idx % 2 === 0) doc.rect(ML, y, CW, ROW_H).fill(C.rowAlt);
         const cells = [
-          { v: String(idx + 1), ...COL[0] },
-          { v: name,             ...COL[1] },
-          { v: phone,            ...COL[2] },
-          { v: orderType,        ...COL[3] },
+          { v: String(idx + 1),  ...COL[0] },
+          { v: name,              ...COL[1] },
+          { v: phone,             ...COL[2] },
+          { v: orderType,         ...COL[3] },
           { v: amount > 0 ? amount.toLocaleString("en-IN") : "—", ...COL[4] },
         ];
         cells.forEach(cell => {
-          const isAmt = cell.h === "Amount (Tk.)";
+          const isAmt = cell.al === "right";
           doc.font(isAmt ? "Helvetica-Bold" : "Helvetica")
-             .fontSize(7.5)
-             .fillColor(isAmt ? GOLD : INK)
+             .fontSize(8)
+             .fillColor(isAmt ? C.gold : C.ink)
              .text(cell.v, cell.x + 4, y + 5, { width: cell.w - 8, align: cell.al, lineBreak: false });
         });
-        doc.moveTo(ML, y + ROW_H).lineTo(ML + CW, y + ROW_H)
-           .lineWidth(0.25).strokeColor(BORDER).stroke();
+        rule(y + ROW_H, C.rule, 0.25);
         y += ROW_H;
       }
 
-      function drawSubtotal(pageName, subtotal, count) {
-        ensureSpace(SUB_H + 6);
-        doc.rect(ML, y, CW, SUB_H).fill(CREAM);
-        doc.font("Helvetica-Bold").fontSize(7.5).fillColor(MUTED)
-           .text(`Subtotal — ${pageName}  (${count} order${count !== 1 ? "s" : ""})`,
-                 ML + 4, y + 5, { width: CW * 0.7 });
-        doc.font("Helvetica-Bold").fontSize(9).fillColor(GOLD)
-           .text(`Tk. ${subtotal.toLocaleString("en-IN")}`, ML + 4, y + 4, { width: CW - 8, align: "right" });
-        goldRule(y + SUB_H, 0.5);
-        y += SUB_H + 6;
+      // ── Subtotal band ────────────────────────────────────────────────────
+      function drawSubtotal(label, amount, count) {
+        ensureSpace(22);
+        rule(y, C.goldPale, 0.6);
+        y += 2;
+        doc.font("Helvetica").fontSize(7.5).fillColor(C.dust)
+           .text(`${count} order${count !== 1 ? "s" : ""}  ·  subtotal`, ML + 4, y + 4, { width: CW * 0.65 });
+        doc.font("Helvetica-Bold").fontSize(9).fillColor(C.gold)
+           .text(`Tk. ${amount.toLocaleString("en-IN")}`, ML, y + 3, { width: CW - 4, align: "right" });
+        y += 20;
+        rule(y, C.rule, 0.4);
+        y += 10;
       }
 
-      // ── START RENDERING ───────────────────────────────────────────────────
-      newPage();
+      // ── Section label (page name) ─────────────────────────────────────────
+      function drawSectionLabel(title, count) {
+        ensureSpace(28 + COLH_H + ROW_H);
+        y += 4;
+        // Thin gold left-bar + elegant label — no background fill
+        doc.rect(ML, y, 2, 18).fill(C.gold);
+        doc.font("Helvetica-Bold").fontSize(10).fillColor(C.ink)
+           .text(title, ML + 10, y + 3, { width: CW * 0.72 });
+        doc.font("Helvetica").fontSize(7.5).fillColor(C.dust)
+           .text(`${count} order${count !== 1 ? "s" : ""}`, ML + 10, y + 3, { width: CW - 10, align: "right" });
+        y += 22;
+        drawColHeaders();
+      }
 
-      // Summary stat strip just below the header
-      const statBoxW = CW / 3;
-      const maleCount   = records.filter(r => r.gender === "male").length;
-      const femaleCount = records.filter(r => r.gender === "female").length;
-      const statItems = [
-        { label: "Total Orders",     value: String(records.length) },
-        { label: "Male / Female",    value: `${maleCount} / ${femaleCount}` },
-        { label: "Facebook Pages",   value: String(pages.length) },
+      // ════════════════════════════════════════════════════════════════════
+      // COVER — first page
+      // ════════════════════════════════════════════════════════════════════
+      newPage(true);
+
+      // Full-bleed top strip — tall enough for branding, not a chunky block
+      doc.rect(0, 0, PAGE_W, 130).fill(C.headerBg);
+
+      // Thin gold accent lines inside the strip
+      doc.moveTo(0, 126).lineTo(PAGE_W, 126).lineWidth(1.5).strokeColor(C.gold).stroke();
+      doc.moveTo(0, 128.5).lineTo(PAGE_W, 128.5).lineWidth(0.4).strokeColor(C.goldPale).stroke();
+
+      // Brand wordmark
+      doc.font("Helvetica-Bold").fontSize(26).fillColor(C.white)
+         .text("Alishan Moments", ML, 34, { characterSpacing: 0.5 });
+
+      // Sub-brand descriptor
+      doc.font("Helvetica").fontSize(9).fillColor(C.goldPale)
+         .text("S A L E S   L E D G E R", ML, 68, { characterSpacing: 2.5 });
+
+      // Date & confidentiality — top-right of strip
+      doc.font("Helvetica").fontSize(7.5).fillColor("#9a9590")
+         .text(`${date}  ·  ${time}`, ML, 38, { width: CW, align: "right" });
+      doc.font("Helvetica").fontSize(7).fillColor("#777370")
+         .text("CONFIDENTIAL  ·  INTERNAL USE ONLY", ML, 54, { width: CW, align: "right", characterSpacing: 0.8 });
+
+      y = 150;
+
+      // ── Summary metrics row ───────────────────────────────────────────────
+      // Three clean metric blocks separated by hairlines, no background box
+      const MET = [
+        { label: "Total Orders",   value: String(records.length) },
+        { label: "Male / Female",  value: `${maleCount} / ${femaleCount}` },
+        { label: "Sources",        value: String(pages.length) },
       ];
-      doc.rect(ML, y, CW, 38).fill(CREAM);
-      statItems.forEach((s, i) => {
-        const bx = ML + i * statBoxW;
-        if (i > 0) doc.moveTo(bx, y + 6).lineTo(bx, y + 32).lineWidth(0.4).strokeColor(BORDER).stroke();
-        doc.font("Helvetica").fontSize(6.5).fillColor(MUTED)
-           .text(s.label.toUpperCase(), bx + 8, y + 7, { width: statBoxW - 14 });
-        doc.font("Helvetica-Bold").fontSize(13).fillColor(INK)
-           .text(s.value, bx + 8, y + 17, { width: statBoxW - 14 });
+      const metW = CW / 3;
+      MET.forEach((m, i) => {
+        const bx = ML + i * metW;
+        if (i > 0) {
+          doc.moveTo(bx, y).lineTo(bx, y + 52)
+             .lineWidth(0.4).strokeColor(C.rule).stroke();
+        }
+        doc.font("Helvetica").fontSize(7).fillColor(C.dust)
+           .text(m.label.toUpperCase(), bx + 12, y + 6, { width: metW - 18, characterSpacing: 0.5 });
+        doc.font("Helvetica-Bold").fontSize(22).fillColor(C.ink)
+           .text(m.value, bx + 12, y + 17, { width: metW - 18 });
       });
-      goldRule(y + 38, 0.5);
-      y += 46;
+      rule(y,      C.rule, 0.5);
+      rule(y + 52, C.rule, 0.5);
+      y += 66;
+
+      // Grand total — displayed prominently on cover beneath metrics
+      doc.font("Helvetica").fontSize(8).fillColor(C.dust)
+         .text("GRAND TOTAL", ML, y, { characterSpacing: 1.2 });
+      y += 14;
+      doc.font("Helvetica-Bold").fontSize(28).fillColor(C.gold)
+         .text(`Tk. ${grandTotal.toLocaleString("en-IN")}`, ML, y);
+      y += 44;
+      rule(y, C.goldPale, 0.6);
+      y += 20;
 
       // ── Per-page sections ─────────────────────────────────────────────────
-      pages.forEach(([pageName, recs], pageIdx) => {
-        const pageSubtotal = recs.reduce((s, r) => s + (r.framePriceNum || 0), 0);
+      pages.forEach(([pageName, recs]) => {
+        const subtotal = recs.reduce((s, r) => s + (r.framePriceNum || 0), 0);
+        drawSectionLabel(pageName, recs.length);
 
-        // Page section heading — needs heading + header + at least 1 row space
-        ensureSpace(26 + HEAD_H + ROW_H);
-
-        // Section title (page name as header)
-        doc.rect(ML, y, CW, 22).fill(INK);
-        // Left accent bar
-        doc.rect(ML, y, 4, 22).fill(GOLD);
-        doc.font("Helvetica-Bold").fontSize(9.5).fillColor(WHITE)
-           .text(pageName, ML + 12, y + 6, { width: CW * 0.65 });
-        doc.font("Helvetica").fontSize(7).fillColor(GOLD_LT)
-           .text(`${recs.length} order${recs.length !== 1 ? "s" : ""}`, ML + 4, y + 6, { width: CW - 8, align: "right" });
-        y += 22;
-
-        // Column headers
-        drawTableHeader();
-
-        // Data rows
         recs.forEach((r, idx) => {
           ensureSpace(ROW_H);
-          // If we had to break, re-draw the column header
-          const prevY = y;
-          if (y === 84) drawTableHeader(); // fresh page after ensureSpace
-          drawRow(
-            idx,
-            r.fullName    || "—",
-            r.phone       || "—",
-            r.frameName   || "—",
-            r.framePriceNum || 0
-          );
+          if (y === 32) drawColHeaders(); // re-header after forced page break
+          drawRow(idx, r.fullName || "—", r.phone || "—", r.frameName || "—", r.framePriceNum || 0);
         });
 
-        // Subtotal row for this page
-        drawSubtotal(pageName, pageSubtotal, recs.length);
-
-        // Gap between page sections
-        y += 8;
+        drawSubtotal(pageName, subtotal, recs.length);
       });
 
-      // ── Grand Total table ─────────────────────────────────────────────────
-      ensureSpace(22 + HEAD_H + pages.length * ROW_H + 30);
+      // ── Final summary table ───────────────────────────────────────────────
+      ensureSpace(30 + COLH_H + pages.length * ROW_H + 36);
 
-      // Section title
-      doc.rect(ML, y, CW, 22).fill(INK);
-      doc.rect(ML, y, 4, 22).fill(GOLD);
-      doc.font("Helvetica-Bold").fontSize(9.5).fillColor(GOLD)
-         .text("Summary — Total Sales by Page", ML + 12, y + 6, { width: CW });
-      y += 22;
+      // Summary heading
+      y += 6;
+      doc.rect(ML, y, 2, 18).fill(C.goldPale);
+      doc.font("Helvetica-Bold").fontSize(10).fillColor(C.ink)
+         .text("Summary by Source", ML + 10, y + 3);
+      y += 26;
 
-      // Summary table header
+      // Summary column headers
       const SCOL = [
-        { h: "#",              w: 28,  al: "center", x: ML },
-        { h: "Facebook Page",  w: 290, al: "left",   x: ML + 28 },
-        { h: "Orders",         w: 60,  al: "center", x: ML + 318 },
-        { h: "Total (Tk.)",    w: 145, al: "right",  x: ML + 378 },
+        { h: "No.",           w: 24,  al: "center", x: ML },
+        { h: "Facebook Page", w: 325, al: "left",   x: ML + 24 },
+        { h: "Orders",        w: 60,  al: "center", x: ML + 349 },
+        { h: "Tk.",           w: 90,  al: "right",  x: ML + 409 },
       ];
-      doc.rect(ML, y, CW, HEAD_H).fill("#1a1612");
+      doc.rect(ML, y, CW, COLH_H).fill("#f0ebe3");
+      rule(y, C.rule, 0.5);
       SCOL.forEach(c => {
-        doc.font("Helvetica-Bold").fontSize(7).fillColor(GOLD_LT)
-           .text(c.h, c.x + 4, y + 4, { width: c.w - 8, align: c.al });
+        doc.font("Helvetica-Bold").fontSize(6.8).fillColor(C.dust)
+           .text(c.h.toUpperCase(), c.x + 4, y + 4, { width: c.w - 8, align: c.al, characterSpacing: 0.3 });
       });
-      y += HEAD_H;
+      rule(y + COLH_H, C.rule, 0.5);
+      y += COLH_H;
 
-      let summaryRunning = 0;
       pages.forEach(([pageName, recs], idx) => {
-        const sub = recs.reduce((s, r) => s + (r.framePriceNum || 0), 0);
-        summaryRunning += sub;
         ensureSpace(ROW_H);
-        const bg = idx % 2 === 0 ? ROW_A : WHITE;
-        doc.rect(ML, y, CW, ROW_H).fill(bg);
-        const sCells = [
-          { v: String(idx + 1),                                     ...SCOL[0] },
-          { v: pageName,                                             ...SCOL[1] },
-          { v: String(recs.length),                                  ...SCOL[2] },
-          { v: sub > 0 ? sub.toLocaleString("en-IN") : "0",         ...SCOL[3] },
+        const sub = recs.reduce((s, r) => s + (r.framePriceNum || 0), 0);
+        if (idx % 2 === 0) doc.rect(ML, y, CW, ROW_H).fill(C.rowAlt);
+        const sRows = [
+          { v: String(idx + 1),                      ...SCOL[0] },
+          { v: pageName,                              ...SCOL[1] },
+          { v: String(recs.length),                   ...SCOL[2] },
+          { v: sub.toLocaleString("en-IN"),           ...SCOL[3] },
         ];
-        sCells.forEach(cell => {
-          const isAmt = cell.h === "Total (Tk.)";
+        sRows.forEach(cell => {
+          const isAmt = cell.al === "right";
           doc.font(isAmt ? "Helvetica-Bold" : "Helvetica")
-             .fontSize(7.5)
-             .fillColor(isAmt ? GOLD : INK)
+             .fontSize(8).fillColor(isAmt ? C.gold : C.ink)
              .text(cell.v, cell.x + 4, y + 5, { width: cell.w - 8, align: cell.al, lineBreak: false });
         });
-        doc.moveTo(ML, y + ROW_H).lineTo(ML + CW, y + ROW_H)
-           .lineWidth(0.25).strokeColor(BORDER).stroke();
+        rule(y + ROW_H, C.rule, 0.25);
         y += ROW_H;
       });
 
-      // Grand total row
-      ensureSpace(28);
-      goldRule(y, 1.5);
-      y += 3;
-      doc.rect(ML, y, CW, 26).fill(INK);
-      doc.font("Helvetica-Bold").fontSize(8.5).fillColor(GOLD_LT)
-         .text("GRAND TOTAL — ALL PAGES", ML + 12, y + 8, { width: CW * 0.6 });
-      doc.font("Helvetica-Bold").fontSize(12).fillColor(GOLD)
-         .text(`Tk. ${grandTotal.toLocaleString("en-IN")}`, ML + 4, y + 7, { width: CW - 8, align: "right" });
-      y += 26;
-      goldRule(y, 1.5);
+      // Grand total row — elegant, not loud
+      ensureSpace(32);
+      rule(y, C.goldPale, 0.8);
+      y += 2;
+      doc.font("Helvetica-Bold").fontSize(8.5).fillColor(C.dust)
+         .text("Grand Total", ML + 4, y + 7, { width: CW * 0.65 });
+      doc.font("Helvetica-Bold").fontSize(13).fillColor(C.gold)
+         .text(`Tk. ${grandTotal.toLocaleString("en-IN")}`, ML, y + 5, { width: CW - 4, align: "right" });
+      y += 28;
+      rule(y, C.rule, 0.5);
 
       drawFooter();
       doc.end();
     });
 
-    const fname = `alishan-moments-sales-${new Date().toISOString().slice(0,10)}.pdf`;
+    const fname = `alishan-moments-sales-${now.toISOString().slice(0,10)}.pdf`;
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader("Content-Disposition", `attachment; filename="${fname}"`);
     res.send(pdfBuffer);
@@ -937,15 +952,6 @@ app.post("/api/orders/export/sales-pdf", async (req, res) => {
     if (!res.headersSent) res.status(500).json({ success: false, message: "Export failed." });
   }
 });
-
-function drawPageFooter(doc, PAGE_W, PAGE_H, ML, CW, MUTED, GOLD, date) {
-  const fy = PAGE_H - 36;
-  doc.moveTo(ML, fy).lineTo(ML + CW, fy).lineWidth(0.5).strokeColor(GOLD).stroke();
-  doc.font("Helvetica").fontSize(6.5).fillColor(MUTED)
-     .text("Alishan Moments  ·  Confidential — Authorized Personnel Only", ML, fy + 6, { width: CW * 0.6 });
-  doc.font("Helvetica").fontSize(6.5).fillColor(MUTED)
-     .text(date, ML, fy + 6, { width: CW, align: "right" });
-}
 
 app.get(/^(?!\/api).*$/, (req, res) => {
   res.sendFile(path.join(__dirname, "public", "index.html"));
