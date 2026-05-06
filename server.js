@@ -46,7 +46,29 @@ const upload = multer({
   limits: { fileSize: 10 * 1024 * 1024 }, // 10 MB per photo
 });
 
-// ── Admin login endpoint ──────────────────────────────────────────────────────
+// ── Temp debug endpoint — remove after confirming env vars load correctly ─────
+// Visit: GET /api/debug/env  — shows env var lengths so you can spot truncation
+// without exposing actual values
+app.get("/api/debug/env", (req, res) => {
+  const vars = ["MONGO_URI", "BASE_URL", "SALES_PDF_PASSWORD", "ADMIN_USERS"];
+  const info = {};
+  vars.forEach(k => {
+    const v = process.env[k];
+    if (v === undefined) {
+      info[k] = "NOT SET";
+    } else {
+      info[k] = {
+        length:    v.length,
+        firstChar: v[0]           || "(empty)",
+        lastChar:  v[v.length-1] || "(empty)",
+        lastCharCode: v.charCodeAt(v.length - 1),
+      };
+    }
+  });
+  res.json(info);
+});
+
+
 // Credentials live only in .env — never exposed to the browser.
 // ADMIN_USERS format in .env:  ADMIN_USERS=username1:password1,username2:password2
 app.post("/api/auth/login", (req, res) => {
@@ -668,8 +690,13 @@ app.get("/api/orders/export/zip/:id", async (req, res) => {
 app.post("/api/orders/export/sales-pdf", async (req, res) => {
   try {
     const { password } = req.body;
-    const SALES_PASSWORD = process.env.SALES_PDF_PASSWORD || "alishan@sales2026";
-    if (!password || password !== SALES_PASSWORD) {
+    const SALES_PASSWORD = (process.env.SALES_PDF_PASSWORD || "alishan@sales2026").trim();
+    const submitted = (password || "").trim();
+
+    // Log length info server-side to help diagnose mismatches (no values logged)
+    console.log(`[sales-pdf] submitted length=${submitted.length} expected length=${SALES_PASSWORD.length} match=${submitted === SALES_PASSWORD}`);
+
+    if (!submitted || submitted !== SALES_PASSWORD) {
       return res.status(401).json({ success: false, message: "Invalid password." });
     }
 
