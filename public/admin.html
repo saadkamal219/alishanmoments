@@ -565,7 +565,7 @@
 
     .order-table {
       width: 100%;
-      min-width: 1280px;
+      min-width: 1430px;
       border-collapse: separate;
       border-spacing: 0;
       table-layout: fixed;
@@ -1246,6 +1246,7 @@
           <col style="width:130px"/>
           <col style="width:120px"/>
           <col style="width:90px"/>
+          <col style="width:150px"/>
           <col style="width:70px"/>
           <col style="width:100px"/>
           <col style="width:100px"/>
@@ -1260,6 +1261,7 @@
             <th>Frame Name</th>
             <th>Frame</th>
             <th>Special Date</th>
+            <th>Address</th>
             <th>Photos</th>
             <th>Message</th>
             <th>Status</th>
@@ -1339,46 +1341,27 @@
 
   <script>
     /* ════ AUTH ════ */
+    /* ════ AUTH (local — no server login needed) ════ */
+    const ADMIN_CREDS = { rams: 'rams@123' };
     let currentUser = null;
 
-    async function doLogin() {
+    function doLogin() {
       const u = document.getElementById('loginUser').value.trim();
       const p = document.getElementById('loginPass').value;
-      if (!u || !p) {
-        document.getElementById('loginError').textContent = '✕ Enter username and password.';
-        return;
-      }
-      const btn = document.querySelector('.btn-login');
-      btn.textContent = 'Signing in…';
-      btn.disabled = true;
-      try {
-        const res = await fetch('/api/auth/login', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ username: u, password: p }),
-        });
-        const data = await res.json();
-        if (res.ok && data.success) {
-          currentUser = data.username;
-          sessionStorage.setItem('mf_admin', data.username);
-          document.getElementById('loginScreen').classList.add('hidden');
-          document.getElementById('adminFooter').style.display = 'block';
-          document.getElementById('adminWrap').classList.add('visible');
-          document.getElementById('navUser').textContent = 'Logged in: ' + data.username;
-          document.getElementById('loginError').textContent = '';
-          loadStats();
-          renderTable();
-        } else {
-          document.getElementById('loginError').textContent = '✕ ' + (data.message || 'Incorrect username or password.');
-          document.getElementById('loginPass').classList.add('invalid');
-          document.getElementById('loginPass').value = '';
-          setTimeout(() => document.getElementById('loginPass').classList.remove('invalid'), 1500);
-        }
-      } catch (e) {
-        document.getElementById('loginError').textContent = '✕ Network error. Try again.';
-      } finally {
-        btn.textContent = 'Sign In →';
-        btn.disabled = false;
+      if (ADMIN_CREDS[u] && ADMIN_CREDS[u] === p) {
+        currentUser = u;
+        sessionStorage.setItem('mf_admin', u);
+        document.getElementById('loginScreen').classList.add('hidden');
+        document.getElementById('adminFooter').style.display = 'block';
+        document.getElementById('adminWrap').classList.add('visible');
+        document.getElementById('navUser').textContent = 'Logged in: ' + u;
+        document.getElementById('loginError').textContent = '';
+        loadStats();
+        renderTable();
+      } else {
+        document.getElementById('loginError').textContent = '✕ Incorrect username or password.';
+        document.getElementById('loginPass').classList.add('invalid');
+        setTimeout(() => document.getElementById('loginPass').classList.remove('invalid'), 1500);
       }
     }
 
@@ -1394,7 +1377,7 @@
 
     window.addEventListener('DOMContentLoaded', () => {
       const s = sessionStorage.getItem('mf_admin');
-      if (s) {
+      if (s && ADMIN_CREDS[s]) {
         currentUser = s;
         document.getElementById('loginScreen').classList.add('hidden');
         document.getElementById('adminFooter').style.display = 'block';
@@ -1510,7 +1493,7 @@
 
       const tbody = document.getElementById('orderTableBody');
       const empty = document.getElementById('emptyState');
-      tbody.innerHTML = '<tr><td colspan="11" style="text-align:center;padding:2rem;color:var(--muted);font-size:.85rem">Loading orders…</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="12" style="text-align:center;padding:2rem;color:var(--muted);font-size:.85rem">Loading orders…</td></tr>';
       empty.style.display = 'none';
 
       try {
@@ -1545,6 +1528,7 @@
             <div class="order-price">${esc(order.categoryPrice)}</div>
           </td>
           <td><div class="order-date-special">${order.specialDate ? formatSpecialDate(order.specialDate) : '—'}</div></td>
+          <td><div style="font-size:.78rem;color:var(--ink);line-height:1.4;white-space:pre-wrap">${esc(order.address || '—')}</div></td>
           <td>${renderPhotos(order.photos)}</td>
           <td><button class="btn-action" onclick='showMessage(${JSON.stringify(order)})' title="View message">💬 View</button></td>
           <td>${statusBadge(order.status)}</td>
@@ -1554,7 +1538,7 @@
           tbody.appendChild(tr);
         });
       } catch (e) {
-        tbody.innerHTML = `<tr><td colspan="11" style="text-align:center;padding:2rem;color:var(--rose)">⚠ Failed to load orders: ${esc(e.message)}</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="12" style="text-align:center;padding:2rem;color:var(--rose)">⚠ Failed to load orders: ${esc(e.message)}</td></tr>`;
       }
     }
 

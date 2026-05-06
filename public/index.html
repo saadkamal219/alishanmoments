@@ -1176,6 +1176,12 @@
           </div>
 
           <div class="form-group">
+            <label for="address">ডেলিভারি ঠিকানা <span class="req">*</span><span class="hint">(সম্পূর্ণ ঠিকানা লিখুন)</span></label>
+            <textarea id="address" rows="3" placeholder="যেমন: বাসা ১২, রোড ৫, ধানমন্ডি, ঢাকা — ১২০৫"></textarea>
+            <span class="form-error" id="addressError"></span>
+          </div>
+
+          <div class="form-group">
             <label for="message">প্রিয়জনের জন্য বার্তা <span class="req">*</span></label>
             <textarea id="message" rows="4"
               placeholder="যেমন: শুভ ১০ম বার্ষিকী! প্রতিটি সুন্দর মুহূর্তের জন্য ধন্যবাদ..."></textarea>
@@ -1328,6 +1334,10 @@
       const de = document.getElementById('specialDate');
       if (!de.value) { de.classList.add('invalid'); document.getElementById('dateError').textContent = 'তারিখ বেছে নিন।'; v = false; }
       else { de.classList.remove('invalid'); document.getElementById('dateError').textContent = ''; }
+      const addr = document.getElementById('address').value.trim();
+      if (!addr) v = setError('address', 'addressError', 'ডেলিভারি ঠিকানা দিন।') && v;
+      else if (addr.length < 8) v = setError('address', 'addressError', 'সম্পূর্ণ ঠিকানা লিখুন।') && v;
+      else setError('address', 'addressError', '');
       const m = document.getElementById('message').value.trim();
       if (!m) v = setError('message', 'messageError', 'বার্তা লিখুন।') && v;
       else if (m.length < 5) v = setError('message', 'messageError', 'বার্তা অনেক ছোট।') && v;
@@ -1348,6 +1358,12 @@
       if (document.getElementById('specialName').value.trim()) {
         document.getElementById('specialName').classList.remove('invalid');
         document.getElementById('specialNameError').textContent = '';
+      }
+    });
+    document.getElementById('address').addEventListener('input', () => {
+      if (document.getElementById('address').value.trim().length >= 8) {
+        document.getElementById('address').classList.remove('invalid');
+        document.getElementById('addressError').textContent = '';
       }
     });
     document.querySelectorAll('input[name="gender"]').forEach(r => r.addEventListener('change', () => {
@@ -1374,6 +1390,7 @@
         fd.append('fullName', document.getElementById('fullName').value.trim());
         fd.append('phone', document.getElementById('phone').value.trim());
         fd.append('specialDate', document.getElementById('specialDate').value);
+        fd.append('address', document.getElementById('address').value.trim());
         fd.append('fbPage', document.getElementById('fbPage').value.trim());
         fd.append('gender', document.querySelector('input[name="gender"]:checked').value);
         fd.append('specialName', document.getElementById('specialName').value.trim());
@@ -1418,8 +1435,8 @@
     function resetForm() {
       document.getElementById('orderForm').reset();
       selectedFiles = []; document.getElementById('filePreview').innerHTML = '';
-      ['fullName', 'phone', 'fbPage', 'specialDate', 'message', 'specialName'].forEach(id => { const el = document.getElementById(id); if (el) el.classList.remove('invalid'); });
-      ['nameError', 'phoneError', 'fbPageError', 'dateError', 'messageError', 'photosError', 'genderError', 'specialNameError'].forEach(id => { const el = document.getElementById(id); if (el) el.textContent = ''; });
+      ['fullName', 'phone', 'fbPage', 'specialDate', 'message', 'specialName', 'address'].forEach(id => { const el = document.getElementById(id); if (el) el.classList.remove('invalid'); });
+      ['nameError', 'phoneError', 'fbPageError', 'dateError', 'messageError', 'photosError', 'genderError', 'specialNameError', 'addressError'].forEach(id => { const el = document.getElementById(id); if (el) el.textContent = ''; });
       document.querySelectorAll('input[name="gender"]').forEach(r => r.classList.remove('invalid'));
       clearFrame();
     }
