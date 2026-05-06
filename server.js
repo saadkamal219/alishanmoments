@@ -46,57 +46,9 @@ const upload = multer({
   limits: { fileSize: 10 * 1024 * 1024 }, // 10 MB per photo
 });
 
-// ── Temp debug endpoint — remove after confirming env vars load correctly ─────
-// Visit: GET /api/debug/env  — shows env var lengths so you can spot truncation
-// without exposing actual values
-app.get("/api/debug/env", (req, res) => {
-  const vars = ["MONGO_URI", "BASE_URL", "SALES_PDF_PASSWORD", "ADMIN_USERS"];
-  const info = {};
-  vars.forEach(k => {
-    const v = process.env[k];
-    if (v === undefined) {
-      info[k] = "NOT SET";
-    } else {
-      info[k] = {
-        length:    v.length,
-        firstChar: v[0]           || "(empty)",
-        lastChar:  v[v.length-1] || "(empty)",
-        lastCharCode: v.charCodeAt(v.length - 1),
-      };
-    }
-  });
-  res.json(info);
-});
-
-
-// Credentials live only in .env — never exposed to the browser.
-// ADMIN_USERS format in .env:  ADMIN_USERS=username1:password1,username2:password2
-app.post("/api/auth/login", (req, res) => {
-  const { username, password } = req.body;
-  if (!username || !password) {
-    return res.status(400).json({ success: false, message: "Username and password required." });
-  }
-
-  // Parse ADMIN_USERS from env: "user1:pass1,user2:pass2"
-  const raw = process.env.ADMIN_USERS || "";
-  const users = {};
-  raw.split(",").forEach(pair => {
-    const idx = pair.indexOf(":");
-    if (idx > 0) {
-      const u = pair.slice(0, idx).trim();
-      const p = pair.slice(idx + 1).trim();
-      if (u) users[u] = p;
-    }
-  });
-
-  if (users[username] && users[username] === password) {
-    return res.json({ success: true, username });
-  }
-  return res.status(401).json({ success: false, message: "Incorrect username or password." });
-});
-
 mongoose.connect(process.env.MONGO_URI)
   .then(async () => {
+    console.log("✅ MongoDB Connected");
 
     // ── Seed all-time lifetime counter ──────────────────────────────────────
     // On first run, count existing "done" orders so the number is not 0.
@@ -690,13 +642,8 @@ app.get("/api/orders/export/zip/:id", async (req, res) => {
 app.post("/api/orders/export/sales-pdf", async (req, res) => {
   try {
     const { password } = req.body;
-    const SALES_PASSWORD = (process.env.SALES_PDF_PASSWORD || "alishan@sales2026").trim();
-    const submitted = (password || "").trim();
-
-    // Log length info server-side to help diagnose mismatches (no values logged)
-    console.log(`[sales-pdf] submitted length=${submitted.length} expected length=${SALES_PASSWORD.length} match=${submitted === SALES_PASSWORD}`);
-
-    if (!submitted || submitted !== SALES_PASSWORD) {
+    const SALES_PASSWORD = process.env.SALES_PDF_PASSWORD || "alishan@sales2026";
+    if (!password || password !== SALES_PASSWORD) {
       return res.status(401).json({ success: false, message: "Invalid password." });
     }
 
@@ -705,6 +652,9 @@ app.post("/api/orders/export/sales-pdf", async (req, res) => {
     const date    = now.toLocaleDateString("en-GB", { day: "2-digit", month: "long", year: "numeric" });
     const time    = now.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
 
+    // Platform fee: configurable via env, defaults to 1 BDT per order
+    const PLATFORM_FEE = parseFloat(process.env.PLATFORM_FEE_PER_ORDER || "1");
+
     // Group by Facebook page
     const pageMap = new Map();
     records.forEach(r => {
@@ -712,10 +662,12 @@ app.post("/api/orders/export/sales-pdf", async (req, res) => {
       if (!pageMap.has(page)) pageMap.set(page, []);
       pageMap.get(page).push(r);
     });
-    const pages      = [...pageMap.entries()];
-    const grandTotal = records.reduce((s, r) => s + (r.framePriceNum || 0), 0);
-    const maleCount  = records.filter(r => r.gender === "male").length;
-    const femaleCount= records.filter(r => r.gender === "female").length;
+    const pages        = [...pageMap.entries()];
+    const grandTotal   = records.reduce((s, r) => s + (r.framePriceNum || 0), 0);
+    const totalFee     = records.length * PLATFORM_FEE;
+    const grandNet     = grandTotal - totalFee;
+    const maleCount    = records.filter(r => r.gender === "male").length;
+    const femaleCount  = records.filter(r => r.gender === "female").length;
 
     const pdfBuffer = await new Promise((resolve, reject) => {
       const doc    = new PDFDocument({ size: "A4", margin: 0, autoFirstPage: true });
@@ -888,13 +840,13 @@ app.post("/api/orders/export/sales-pdf", async (req, res) => {
       y = 150;
 
       // ── Summary metrics row ───────────────────────────────────────────────
-      // Three clean metric blocks separated by hairlines, no background box
       const MET = [
-        { label: "Total Orders",   value: String(records.length) },
-        { label: "Male / Female",  value: `${maleCount} / ${femaleCount}` },
-        { label: "Sources",        value: String(pages.length) },
+        { label: "Total Orders",    value: String(records.length) },
+        { label: "Male / Female",   value: `${maleCount} / ${femaleCount}` },
+        { label: "Sources",         value: String(pages.length) },
+        { label: "Platform Fee",    value: `Tk. ${totalFee.toLocaleString("en-IN")}` },
       ];
-      const metW = CW / 3;
+      const metW = CW / 4;
       MET.forEach((m, i) => {
         const bx = ML + i * metW;
         if (i > 0) {
@@ -902,21 +854,35 @@ app.post("/api/orders/export/sales-pdf", async (req, res) => {
              .lineWidth(0.4).strokeColor(C.rule).stroke();
         }
         doc.font("Helvetica").fontSize(7).fillColor(C.dust)
-           .text(m.label.toUpperCase(), bx + 12, y + 6, { width: metW - 18, characterSpacing: 0.5 });
-        doc.font("Helvetica-Bold").fontSize(22).fillColor(C.ink)
-           .text(m.value, bx + 12, y + 17, { width: metW - 18 });
+           .text(m.label.toUpperCase(), bx + 10, y + 6, { width: metW - 16, characterSpacing: 0.5 });
+        doc.font("Helvetica-Bold").fontSize(i < 2 ? 22 : 14).fillColor(i === 3 ? "#b04040" : C.ink)
+           .text(m.value, bx + 10, y + (i < 2 ? 17 : 22), { width: metW - 16 });
       });
       rule(y,      C.rule, 0.5);
       rule(y + 52, C.rule, 0.5);
       y += 66;
 
-      // Grand total — displayed prominently on cover beneath metrics
-      doc.font("Helvetica").fontSize(8).fillColor(C.dust)
-         .text("GRAND TOTAL", ML, y, { characterSpacing: 1.2 });
-      y += 14;
+      // Grand totals block — three lines: gross / fee / net
+      doc.font("Helvetica").fontSize(7.5).fillColor(C.dust)
+         .text("GROSS SALES", ML, y, { characterSpacing: 1.2 });
+      doc.font("Helvetica-Bold").fontSize(22).fillColor(C.gold)
+         .text(`Tk. ${grandTotal.toLocaleString("en-IN")}`, ML, y + 11);
+      y += 40;
+
+      doc.font("Helvetica").fontSize(7.5).fillColor(C.dust)
+         .text(`PLATFORM FEE  (Tk. ${PLATFORM_FEE} × ${records.length} orders)`, ML, y, { characterSpacing: 0.8 });
+      doc.font("Helvetica-Bold").fontSize(14).fillColor("#b04040")
+         .text(`− Tk. ${totalFee.toLocaleString("en-IN")}`, ML, y + 11);
+      y += 34;
+
+      rule(y, C.goldPale, 0.6);
+      y += 8;
+
+      doc.font("Helvetica").fontSize(7.5).fillColor(C.dust)
+         .text("NET REVENUE", ML, y, { characterSpacing: 1.2 });
       doc.font("Helvetica-Bold").fontSize(28).fillColor(C.gold)
-         .text(`Tk. ${grandTotal.toLocaleString("en-IN")}`, ML, y);
-      y += 44;
+         .text(`Tk. ${grandNet.toLocaleString("en-IN")}`, ML, y + 11);
+      y += 50;
       rule(y, C.goldPale, 0.6);
       y += 20;
 
@@ -935,7 +901,7 @@ app.post("/api/orders/export/sales-pdf", async (req, res) => {
       });
 
       // ── Final summary table ───────────────────────────────────────────────
-      ensureSpace(30 + COLH_H + pages.length * ROW_H + 36);
+      ensureSpace(30 + COLH_H + pages.length * ROW_H + 60);
 
       // Summary heading
       y += 6;
@@ -944,51 +910,81 @@ app.post("/api/orders/export/sales-pdf", async (req, res) => {
          .text("Summary by Source", ML + 10, y + 3);
       y += 26;
 
-      // Summary column headers
+      // Summary column headers — 6 columns
+      // No. | Facebook Page | Orders | Gross (Tk.) | Platform Fee | Net (Tk.)
       const SCOL = [
         { h: "No.",           w: 24,  al: "center", x: ML },
-        { h: "Facebook Page", w: 325, al: "left",   x: ML + 24 },
-        { h: "Orders",        w: 60,  al: "center", x: ML + 349 },
-        { h: "Tk.",           w: 90,  al: "right",  x: ML + 409 },
+        { h: "Facebook Page", w: 195, al: "left",   x: ML + 24  },
+        { h: "Orders",        w: 50,  al: "center", x: ML + 219 },
+        { h: "Gross (Tk.)",   w: 82,  al: "right",  x: ML + 269 },
+        { h: "Platform Fee",  w: 76,  al: "right",  x: ML + 351 },
+        { h: "Net (Tk.)",     w: 72,  al: "right",  x: ML + 427 },
       ];
       doc.rect(ML, y, CW, COLH_H).fill("#f0ebe3");
       rule(y, C.rule, 0.5);
       SCOL.forEach(c => {
-        doc.font("Helvetica-Bold").fontSize(6.8).fillColor(C.dust)
-           .text(c.h.toUpperCase(), c.x + 4, y + 4, { width: c.w - 8, align: c.al, characterSpacing: 0.3 });
+        doc.font("Helvetica-Bold").fontSize(6.5).fillColor(C.dust)
+           .text(c.h.toUpperCase(), c.x + 3, y + 4, { width: c.w - 6, align: c.al, characterSpacing: 0.3 });
       });
       rule(y + COLH_H, C.rule, 0.5);
       y += COLH_H;
 
       pages.forEach(([pageName, recs], idx) => {
         ensureSpace(ROW_H);
-        const sub = recs.reduce((s, r) => s + (r.framePriceNum || 0), 0);
+        const gross  = recs.reduce((s, r) => s + (r.framePriceNum || 0), 0);
+        const fee    = recs.length * PLATFORM_FEE;
+        const net    = gross - fee;
         if (idx % 2 === 0) doc.rect(ML, y, CW, ROW_H).fill(C.rowAlt);
         const sRows = [
-          { v: String(idx + 1),                      ...SCOL[0] },
-          { v: pageName,                              ...SCOL[1] },
-          { v: String(recs.length),                   ...SCOL[2] },
-          { v: sub.toLocaleString("en-IN"),           ...SCOL[3] },
+          { v: String(idx + 1),                   ...SCOL[0] },
+          { v: pageName,                           ...SCOL[1] },
+          { v: String(recs.length),                ...SCOL[2] },
+          { v: gross.toLocaleString("en-IN"),      ...SCOL[3] },
+          { v: `− ${fee.toLocaleString("en-IN")}`, ...SCOL[4] },
+          { v: net.toLocaleString("en-IN"),        ...SCOL[5] },
         ];
         sRows.forEach(cell => {
-          const isAmt = cell.al === "right";
-          doc.font(isAmt ? "Helvetica-Bold" : "Helvetica")
-             .fontSize(8).fillColor(isAmt ? C.gold : C.ink)
-             .text(cell.v, cell.x + 4, y + 5, { width: cell.w - 8, align: cell.al, lineBreak: false });
+          const isFee = cell.h === "Platform Fee";
+          const isNet = cell.h === "Net (Tk.)";
+          const isGross = cell.h === "Gross (Tk.)";
+          const color = isFee ? "#b04040" : (isNet || isGross) ? C.gold : C.ink;
+          doc.font((isFee || isNet || isGross) ? "Helvetica-Bold" : "Helvetica")
+             .fontSize(7.5).fillColor(color)
+             .text(cell.v, cell.x + 3, y + 5, { width: cell.w - 6, align: cell.al, lineBreak: false });
         });
         rule(y + ROW_H, C.rule, 0.25);
         y += ROW_H;
       });
 
-      // Grand total row — elegant, not loud
-      ensureSpace(32);
+      // Totals row
+      ensureSpace(48);
       rule(y, C.goldPale, 0.8);
-      y += 2;
-      doc.font("Helvetica-Bold").fontSize(8.5).fillColor(C.dust)
-         .text("Grand Total", ML + 4, y + 7, { width: CW * 0.65 });
-      doc.font("Helvetica-Bold").fontSize(13).fillColor(C.gold)
-         .text(`Tk. ${grandTotal.toLocaleString("en-IN")}`, ML, y + 5, { width: CW - 4, align: "right" });
-      y += 28;
+      y += 3;
+
+      // Gross total line
+      doc.font("Helvetica").fontSize(7.5).fillColor(C.dust)
+         .text("Gross Total", ML + 4, y + 4, { width: SCOL[2].x - ML - 8 });
+      doc.font("Helvetica-Bold").fontSize(9).fillColor(C.gold)
+         .text(`Tk. ${grandTotal.toLocaleString("en-IN")}`, SCOL[3].x + 3, y + 4,
+               { width: SCOL[3].w - 6, align: "right" });
+      doc.font("Helvetica-Bold").fontSize(9).fillColor("#b04040")
+         .text(`− Tk. ${totalFee.toLocaleString("en-IN")}`, SCOL[4].x + 3, y + 4,
+               { width: SCOL[4].w - 6, align: "right" });
+      doc.font("Helvetica-Bold").fontSize(9).fillColor(C.gold)
+         .text(`Tk. ${grandNet.toLocaleString("en-IN")}`, SCOL[5].x + 3, y + 4,
+               { width: SCOL[5].w - 6, align: "right" });
+      y += 20;
+
+      rule(y, C.goldPale, 0.5);
+      y += 6;
+
+      // Platform fee note
+      doc.font("Helvetica").fontSize(7).fillColor(C.dust)
+         .text(
+           `Platform fee: Tk. ${PLATFORM_FEE.toLocaleString("en-IN")} per order  ·  ${records.length} total orders  ·  Total fee: Tk. ${totalFee.toLocaleString("en-IN")}`,
+           ML + 4, y + 3, { width: CW - 8 }
+         );
+      y += 18;
       rule(y, C.rule, 0.5);
 
       drawFooter();
