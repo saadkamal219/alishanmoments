@@ -580,7 +580,7 @@ app.get("/api/orders/export/zip/:id", async (req, res) => {
       sectionTitle("Customer Information");
       field("Full Name",      o.fullName);
       field("Phone",          o.phone);
-      field("Gender",         o.gender === "male" ? "Male (পুরুষ)" : o.gender === "female" ? "Female (মহিলা)" : (o.gender || "—"));
+      field("Gender",         o.gender === "male" ? "Male" : o.gender === "female" ? "Female" : (o.gender || "—"));
       field("Facebook Page",  o.fbPage || "—");
       field("Address",        o.address || "—");
       y += 10;
@@ -590,7 +590,6 @@ app.get("/api/orders/export/zip/:id", async (req, res) => {
       field("Frame Display Name",o.specialName || "—");
       field("Price",             "Tk. " + String(o.categoryPrice || "").replace(/[^\x00-\x7F0-9.,\s]/g, "").trim());
       field("Special Date",      specialDate);
-      field("Platform Fee",      `Tk. ${PLATFORM_FEE.toLocaleString("en-IN")} (per order)`);
       y += 10;
 
       sectionTitle("Personal Message");
@@ -612,41 +611,6 @@ app.get("/api/orders/export/zip/:id", async (req, res) => {
           y += 16;
         });
       }
-
-      // ── Signature Section ─────────────────────────────────────────────────
-      const sigNeeded = 120;
-      if (y + sigNeeded > doc.page.height - 50) { doc.addPage(); y = 50; }
-      y += 20;
-      sectionTitle("Authorisation & Signatures");
-      y += 8;
-
-      const sigBoxW = (W - 20) / 2;
-      const sigBoxH = 55;
-
-      // Page Owner signature box
-      doc.rect(50, y, sigBoxW, sigBoxH).strokeColor("#d0c8b8").lineWidth(0.5).stroke();
-      doc.fontSize(7).fillColor(MUTED).font("Helvetica-Bold")
-         .text("PAGE OWNER", 58, y + 8, { width: sigBoxW - 16 });
-      doc.fontSize(7).fillColor(MUTED).font("Helvetica")
-         .text(o.fbPage || "—", 58, y + 18, { width: sigBoxW - 16 });
-      doc.moveTo(58, y + sigBoxH - 10).lineTo(50 + sigBoxW - 8, y + sigBoxH - 10)
-         .strokeColor("#c8c0b0").lineWidth(0.4).stroke();
-      doc.fontSize(6.5).fillColor(MUTED).font("Helvetica")
-         .text("Signature & Date", 58, y + sigBoxH - 8, { width: sigBoxW - 16 });
-
-      // Accountant signature box
-      const acctX = 50 + sigBoxW + 20;
-      doc.rect(acctX, y, sigBoxW, sigBoxH).strokeColor("#d0c8b8").lineWidth(0.5).stroke();
-      doc.fontSize(7).fillColor(MUTED).font("Helvetica-Bold")
-         .text("ACCOUNTANT", acctX + 8, y + 8, { width: sigBoxW - 16 });
-      doc.fontSize(7).fillColor(MUTED).font("Helvetica")
-         .text("Account Clearance", acctX + 8, y + 18, { width: sigBoxW - 16 });
-      doc.moveTo(acctX + 8, y + sigBoxH - 10).lineTo(acctX + sigBoxW - 8, y + sigBoxH - 10)
-         .strokeColor("#c8c0b0").lineWidth(0.4).stroke();
-      doc.fontSize(6.5).fillColor(MUTED).font("Helvetica")
-         .text("Signature & Date", acctX + 8, y + sigBoxH - 8, { width: sigBoxW - 16 });
-
-      y += sigBoxH + 10;
 
       const footerY = doc.page.height - 40;
       doc.fontSize(7).fillColor(MUTED).font("Helvetica")
@@ -955,12 +919,13 @@ app.post("/api/orders/export/sales-pdf", async (req, res) => {
          .text("Summary by Source", ML + 10, y + 3);
       y += 26;
 
-      // Summary column headers
+      // Summary column headers — 5 columns: No. | Facebook Page | Orders | Platform Fee | Sales
       const SCOL = [
         { h: "No.",           w: 24,  al: "center", x: ML },
-        { h: "Facebook Page", w: 325, al: "left",   x: ML + 24 },
-        { h: "Orders",        w: 60,  al: "center", x: ML + 349 },
-        { h: "Tk.",           w: 90,  al: "right",  x: ML + 409 },
+        { h: "Facebook Page", w: 215, al: "left",   x: ML + 24 },
+        { h: "Orders",        w: 55,  al: "center", x: ML + 239 },
+        { h: "Platform Fee",  w: 95,  al: "right",  x: ML + 294 },
+        { h: "Sales (Tk.)",   w: 110, al: "right",  x: ML + 389 },
       ];
       doc.rect(ML, y, CW, COLH_H).fill("#f0ebe3");
       rule(y, C.rule, 0.5);
@@ -973,13 +938,15 @@ app.post("/api/orders/export/sales-pdf", async (req, res) => {
 
       pages.forEach(([pageName, recs], idx) => {
         ensureSpace(ROW_H);
-        const sub = recs.reduce((s, r) => s + (r.framePriceNum || 0), 0);
+        const sub     = recs.reduce((s, r) => s + (r.framePriceNum || 0), 0);
+        const pageFee = recs.length * PLATFORM_FEE;
         if (idx % 2 === 0) doc.rect(ML, y, CW, ROW_H).fill(C.rowAlt);
         const sRows = [
-          { v: String(idx + 1),                      ...SCOL[0] },
-          { v: pageName,                              ...SCOL[1] },
-          { v: String(recs.length),                   ...SCOL[2] },
-          { v: sub.toLocaleString("en-IN"),           ...SCOL[3] },
+          { v: String(idx + 1),                          ...SCOL[0] },
+          { v: pageName,                                  ...SCOL[1] },
+          { v: String(recs.length),                       ...SCOL[2] },
+          { v: `Tk. ${pageFee.toLocaleString("en-IN")}`,  ...SCOL[3] },
+          { v: `Tk. ${sub.toLocaleString("en-IN")}`,      ...SCOL[4] },
         ];
         sRows.forEach(cell => {
           const isAmt = cell.al === "right";
