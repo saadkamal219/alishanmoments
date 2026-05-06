@@ -46,9 +46,35 @@ const upload = multer({
   limits: { fileSize: 10 * 1024 * 1024 }, // 10 MB per photo
 });
 
+// ── Admin login endpoint ──────────────────────────────────────────────────────
+// Credentials live only in .env — never exposed to the browser.
+// ADMIN_USERS format in .env:  ADMIN_USERS=username1:password1,username2:password2
+app.post("/api/auth/login", (req, res) => {
+  const { username, password } = req.body;
+  if (!username || !password) {
+    return res.status(400).json({ success: false, message: "Username and password required." });
+  }
+
+  // Parse ADMIN_USERS from env: "user1:pass1,user2:pass2"
+  const raw = process.env.ADMIN_USERS || "";
+  const users = {};
+  raw.split(",").forEach(pair => {
+    const idx = pair.indexOf(":");
+    if (idx > 0) {
+      const u = pair.slice(0, idx).trim();
+      const p = pair.slice(idx + 1).trim();
+      if (u) users[u] = p;
+    }
+  });
+
+  if (users[username] && users[username] === password) {
+    return res.json({ success: true, username });
+  }
+  return res.status(401).json({ success: false, message: "Incorrect username or password." });
+});
+
 mongoose.connect(process.env.MONGO_URI)
   .then(async () => {
-    console.log("✅ MongoDB Connected");
 
     // ── Seed all-time lifetime counter ──────────────────────────────────────
     // On first run, count existing "done" orders so the number is not 0.

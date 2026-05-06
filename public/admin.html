@@ -1339,27 +1339,46 @@
 
   <script>
     /* ════ AUTH ════ */
-    /* ════ AUTH (local — no server login needed) ════ */
-    const ADMIN_CREDS = { rams: 'rams@123' };
     let currentUser = null;
 
-    function doLogin() {
+    async function doLogin() {
       const u = document.getElementById('loginUser').value.trim();
       const p = document.getElementById('loginPass').value;
-      if (ADMIN_CREDS[u] && ADMIN_CREDS[u] === p) {
-        currentUser = u;
-        sessionStorage.setItem('mf_admin', u);
-        document.getElementById('loginScreen').classList.add('hidden');
-        document.getElementById('adminFooter').style.display = 'block';
-        document.getElementById('adminWrap').classList.add('visible');
-        document.getElementById('navUser').textContent = 'Logged in: ' + u;
-        document.getElementById('loginError').textContent = '';
-        loadStats();
-        renderTable();
-      } else {
-        document.getElementById('loginError').textContent = '✕ Incorrect username or password.';
-        document.getElementById('loginPass').classList.add('invalid');
-        setTimeout(() => document.getElementById('loginPass').classList.remove('invalid'), 1500);
+      if (!u || !p) {
+        document.getElementById('loginError').textContent = '✕ Enter username and password.';
+        return;
+      }
+      const btn = document.querySelector('.btn-login');
+      btn.textContent = 'Signing in…';
+      btn.disabled = true;
+      try {
+        const res = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username: u, password: p }),
+        });
+        const data = await res.json();
+        if (res.ok && data.success) {
+          currentUser = data.username;
+          sessionStorage.setItem('mf_admin', data.username);
+          document.getElementById('loginScreen').classList.add('hidden');
+          document.getElementById('adminFooter').style.display = 'block';
+          document.getElementById('adminWrap').classList.add('visible');
+          document.getElementById('navUser').textContent = 'Logged in: ' + data.username;
+          document.getElementById('loginError').textContent = '';
+          loadStats();
+          renderTable();
+        } else {
+          document.getElementById('loginError').textContent = '✕ ' + (data.message || 'Incorrect username or password.');
+          document.getElementById('loginPass').classList.add('invalid');
+          document.getElementById('loginPass').value = '';
+          setTimeout(() => document.getElementById('loginPass').classList.remove('invalid'), 1500);
+        }
+      } catch (e) {
+        document.getElementById('loginError').textContent = '✕ Network error. Try again.';
+      } finally {
+        btn.textContent = 'Sign In →';
+        btn.disabled = false;
       }
     }
 
@@ -1375,7 +1394,7 @@
 
     window.addEventListener('DOMContentLoaded', () => {
       const s = sessionStorage.getItem('mf_admin');
-      if (s && ADMIN_CREDS[s]) {
+      if (s) {
         currentUser = s;
         document.getElementById('loginScreen').classList.add('hidden');
         document.getElementById('adminFooter').style.display = 'block';
